@@ -54,3 +54,5 @@ fun BackendConnectionStatus(modifier: Modifier = Modifier) {
             style = MaterialTheme.typography.labelMedium)
     }
 }
+
+// Build verification: helper is included in the admin app source set.
