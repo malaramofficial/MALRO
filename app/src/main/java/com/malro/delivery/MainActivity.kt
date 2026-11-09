@@ -3,10 +3,7 @@ package com.malro.delivery
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -17,92 +14,50 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-private val Navy = Color(0xFF3C2A1A)
-private val Gold = Color(0xFFD8B56D)
-private val Canvas = Color(0xFFF4F6F9)
+private val Ink=Color(0xFF3C2A1A)
+private val Gold=Color(0xFFD8B56D)
+private val Paper=Color(0xFFF4F6F9)
 
-class MainActivity : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContent { MalroApp() }
-    }
+class MainActivity:ComponentActivity(){
+ override fun onCreate(savedInstanceState:Bundle?){super.onCreate(savedInstanceState);setContent{MalroApp()}}
 }
-
-@Composable
-private fun MalroApp() {
-    var selected by remember { mutableIntStateOf(0) }
-    val sections = listOf("होम", "गतिविधि", "प्रोफ़ाइल")
-    MaterialTheme(colorScheme = lightColorScheme(primary = Navy, secondary = Gold, background = Canvas)) {
-        Scaffold(containerColor = Canvas, bottomBar = {
-            NavigationBar(containerColor = Color.White) {
-                sections.forEachIndexed { index, label ->
-                    NavigationBarItem(selected = selected == index, onClick = { selected = index },
-                        icon = { Text(listOf("⌂", "◷", "●")[index], fontSize = 18.sp) }, label = { Text(label) })
-                }
-            }
-        }) { padding ->
-            when (selected) {
-                0 -> HomeScreen(Modifier.padding(padding))
-                1 -> ActivityScreen(Modifier.padding(padding))
-                else -> ProfileScreen(Modifier.padding(padding))
-            }
-        }
+@Composable private fun MalroApp(){
+ var tab by remember{mutableIntStateOf(0)}
+ MaterialTheme(colorScheme=lightColorScheme(primary=Ink,secondary=Gold,background=Paper)){
+  Scaffold(containerColor=Paper,bottomBar={
+   NavigationBar(containerColor=Color.White){
+    listOf("होम","डिलीवरी","कमाई").forEachIndexed{i,label->
+     NavigationBarItem(selected=tab==i,onClick={tab=i},icon={Text(listOf("⌂","▤","▣")[i],fontSize=18.sp)},label={Text(label)})
     }
+   }
+  }){padding->
+   Column(Modifier.fillMaxSize().padding(padding)){
+    Column(Modifier.fillMaxWidth().padding(horizontal=18.dp,vertical=12.dp)){
+     Text("MALRO",color=Ink,fontWeight=FontWeight.Bold,letterSpacing=3.sp,fontSize=13.sp)
+     Text("MALRO Delivery",color=Ink,fontWeight=FontWeight.Bold,fontSize=24.sp)
+     Text("BARMER • LOCAL MARKETPLACE",color=Color.Gray,fontSize=10.sp)
+    }
+    when(tab){
+     0->{var online by remember { mutableStateOf(false) }
+ var completed by remember { mutableIntStateOf(0) }
+ Column(Modifier.fillMaxSize().padding(18.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
+  Text("डिलीवरी पार्टनर",fontSize=26.sp,fontWeight=FontWeight.Bold,color=Ink)
+  Card(colors=CardDefaults.cardColors(containerColor=Ink)){Column(Modifier.padding(18.dp)){Text(if(online)"आप ऑनलाइन हैं" else "आप ऑफलाइन हैं",color=Color.White,fontSize=20.sp,fontWeight=FontWeight.Bold);Text("लोकेशन तभी साझा करें जब आप उपलब्ध हों।",color=Color.White.copy(.8f),fontSize=12.sp)}}
+  Row(verticalAlignment=Alignment.CenterVertically){Text("काम के लिए उपलब्ध",Modifier.weight(1f),color=Ink);Switch(checked=online,onCheckedChange={online=it})}
+  Text("डेमो डिलीवरी जॉब",fontWeight=FontWeight.Bold,color=Ink)
+  listOf("ऑर्डर #204 • मीठी बेरी रोड","ऑर्डर #205 • मुख्य बाज़ार").forEach { job -> Card(colors=CardDefaults.cardColors(containerColor=Color.White)){Column(Modifier.padding(14.dp)){Text(job,color=Ink,fontWeight=FontWeight.Bold);Button(onClick={completed++},enabled=online){Text("डिलीवरी पूरी करें")}}} }
+  Text("इस डिवाइस पर डेमो में पूरी की गई: $completed",color=Ink)
+  Text("GPS, OTP और जॉब असाइनमेंट वास्तविक बैकएंड जुड़ने के बाद ही काम करेंगे।",fontSize=12.sp,color=Color.Gray)
+ }}
+     1->{Column(Modifier.fillMaxSize().padding(22.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){Text("डिलीवरी",fontSize=25.sp,fontWeight=FontWeight.Bold,color=Ink);Text("इस मॉड्यूल का लाइव डेटा बैकएंड कनेक्शन के बाद दिखेगा।",color=Color.Gray)}}
+     else->{Column(Modifier.fillMaxSize().padding(22.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){Text("कमाई",fontSize=25.sp,fontWeight=FontWeight.Bold,color=Ink);Text("सुरक्षित लॉगिन और सर्वर डेटा अगली स्टेज में जुड़ेगा।",color=Color.Gray)}}
+    }
+   }
+  }
+ }
 }
-
-@Composable
-private fun HomeScreen(modifier: Modifier = Modifier) {
-    LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        item {
-            Text("MALRO", color = Navy, fontSize = 14.sp, fontWeight = FontWeight.Bold, letterSpacing = 3.sp)
-            Spacer(Modifier.height(8.dp))
-            Text("डिलीवरी पार्टनर", color = Color.DarkGray, fontSize = 14.sp)
-            Text("MALRO Delivery", color = Navy, fontSize = 30.sp, fontWeight = FontWeight.Bold)
-        }
-        item {
-            Card(colors = CardDefaults.cardColors(containerColor = Navy), shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(22.dp)) {
-                    Text("BARMER • LOCAL MARKETPLACE", color = Gold, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.height(10.dp))
-                    Text("डिलीवरी जॉब देखें, पिकअप करें और सुरक्षित रूप से ऑर्डर पहुँचाएं।", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
-                    Spacer(Modifier.height(18.dp))
-                    Text("शुरुआती संस्करण 0.1.0", color = Color.White.copy(alpha = .75f), fontSize = 12.sp)
-                }
-            }
-        }
-        item { Text("मुख्य सुविधाएँ", color = Navy, fontSize = 19.sp, fontWeight = FontWeight.Bold) }
-        items(listOf("ऑनलाइन / ऑफलाइन", "असाइन किए गए ऑर्डर", "पिकअप पुष्टि", "OTP डिलीवरी", "कमाई और इतिहास")) { feature ->
-            Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
-                Row(Modifier.padding(17.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(38.dp).background(Gold.copy(alpha = .18f), RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
-                        Text("✓", color = Navy, fontWeight = FontWeight.Bold)
-                    }
-                    Spacer(Modifier.width(14.dp))
-                    Text(feature, color = Navy, fontWeight = FontWeight.Medium)
-                }
-            }
-        }
-        item {
-            Text("यह शुरुआती UI है। वास्तविक लॉगिन, भुगतान, लाइव डेटा और सर्वर अनुमतियाँ बैकएंड जुड़ने के बाद सक्रिय होंगी।",
-                color = Color(0xFF6B7280), fontSize = 12.sp)
-        }
-    }
-}
-
-@Composable
-private fun ActivityScreen(modifier: Modifier = Modifier) {
-    Column(modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("गतिविधि", color = Navy, fontSize = 28.sp, fontWeight = FontWeight.Bold)
-        Text("अभी कोई लाइव रिकॉर्ड उपलब्ध नहीं है।", color = Color.DarkGray)
-        Text("यह स्क्रीन सर्वर API जुड़ने पर वास्तविक डेटा दिखाएगी।", color = Color.Gray, fontSize = 13.sp)
-    }
-}
-
-@Composable
-private fun ProfileScreen(modifier: Modifier = Modifier) {
-    Column(modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("प्रोफ़ाइल", color = Navy, fontSize = 28.sp, fontWeight = FontWeight.Bold)
-        Text("MALRO Delivery", color = Color.DarkGray)
-        Text("साइन-इन और खाता सत्यापन सुरक्षित बैकएंड स्टेज में जोड़े जाएंगे।", color = Color.Gray, fontSize = 13.sp)
-    }
+@Composable private fun Metric(label:String,value:String,modifier:Modifier=Modifier){
+ Card(modifier,colors=CardDefaults.cardColors(containerColor=Color.White),shape=RoundedCornerShape(16.dp)){
+  Column(Modifier.padding(16.dp)){Text(label,color=Color.Gray,fontSize=12.sp);Text(value,color=Ink,fontWeight=FontWeight.Bold,fontSize=25.sp)}
+ }
 }
