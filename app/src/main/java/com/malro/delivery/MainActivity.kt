@@ -36,6 +36,7 @@ class MainActivity:ComponentActivity(){
      Text("MALRO",color=Ink,fontWeight=FontWeight.Bold,letterSpacing=3.sp,fontSize=13.sp)
      Text("MALRO Delivery",color=Ink,fontWeight=FontWeight.Bold,fontSize=24.sp)
      Text("BARMER • LOCAL MARKETPLACE",color=Color.Gray,fontSize=10.sp)
+     BackendConnectionStatus()
     }
     when(tab){
      0->{var online by remember { mutableStateOf(false) }
