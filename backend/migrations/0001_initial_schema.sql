@@ -123,7 +123,7 @@ create policy "seller updates own shop" on public.shops for update to authentica
 
 create policy "active products public read" on public.products for select to anon, authenticated
   using (
-    status = 'active'
+    (status = 'active' and exists (select 1 from public.shops s where s.id = shop_id and s.status = 'approved'))
     or exists (select 1 from public.shops s where s.id = shop_id and s.owner_id = (select auth.uid()))
     or (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'
   );
@@ -179,6 +179,8 @@ create policy "order events parties read" on public.order_events for select to a
 grant select on public.shops, public.products to anon, authenticated;
 grant select, insert, update on public.profiles to authenticated;
 grant insert on public.shops to authenticated;
-grant update on public.shops to authenticated;
+-- Prevent sellers from changing approval status directly.
+revoke update on public.shops from authenticated;
+grant update (name, description, phone, address, locality) on public.shops to authenticated;
 grant insert, update on public.products to authenticated;
 grant select on public.orders, public.order_items, public.delivery_jobs, public.order_events to authenticated;
