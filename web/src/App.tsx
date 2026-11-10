@@ -60,7 +60,7 @@ export default function App() {
         if (!activeShop || !ids.includes(activeShop)) setActiveShop(ids[0])
       } else { setProducts([]); setOrders([]) }
     } else if (role === 'delivery') {
-      const j = await supabase.from('delivery_jobs').select('id,order_id,pickup_at,delivered_at,last_latitude,last_longitude').eq('delivery_user_id', userId).order('created_at', { ascending: false })
+      const j = await supabase.from('delivery_jobs').select('id,order_id,pickup_at,delivered_at,last_latitude,last_longitude,orders(id,status,total_paise,delivery_address)').eq('delivery_user_id', userId).order('created_at', { ascending: false })
       if (j.error) throw j.error
       setJobs(j.data || [])
     } else if (role === 'admin') {
@@ -167,6 +167,12 @@ export default function App() {
     if (error) throw error
     await refresh(session.user.id)
   })
+  const updateDeliveryOrder = (id: string, status: 'picked_up' | 'delivered') => run(async () => {
+    const { error } = await supabase.rpc('delivery_update_order_status', { p_order_id: id, p_new_status: status })
+    if (error) throw error
+    await refresh(session.user.id)
+    setNotice(status === 'picked_up' ? 'ऑर्डर पिकअप हो गया।' : 'डिलीवरी पूरी हो गई।')
+  })
   const cancelOrder = (id: string) => run(async () => {
     const { error } = await supabase.rpc('cancel_customer_order', { p_order_id: id })
     if (error) throw error
@@ -186,7 +192,7 @@ export default function App() {
     {role === 'seller' && tab === 2 && <section className="panel"><h2>दुकान के ऑर्डर</h2>{orders.map(o => <div className="list-row" key={o.id}><span>#{o.id.slice(0,8)} • {o.status}</span><strong>{money(o.total_paise)}</strong></div>)}{!orders.length && <Empty text="अभी कोई ऑर्डर नहीं है।" />}<p className="notice">ऑर्डर स्वीकार/पैक करने के लिए सुरक्षित सर्वर एक्शन अभी बनाना बाकी है।</p></section>}
     {role === 'seller' && tab === 3 && <section className="panel"><h2>दुकान आवेदन</h2>{profile?.account_role === 'customer' && <button onClick={applySeller}>विक्रेता आवेदन शुरू करें</button>}{profile?.account_role === 'seller_pending' && <><p className="notice">आपका विक्रेता आवेदन लंबित है। दुकान विवरण भरें।</p><div className="form-grid">{(['name','phone','address','locality'] as const).map(k => <label key={k}>{k}<input value={shopForm[k]} onChange={e => setShopForm(f => ({...f,[k]:e.target.value}))}/></label>)}</div><button onClick={createShop}>दुकान आवेदन भेजें</button></>}{profile?.account_role === 'seller' && <p>विक्रेता खाता सक्रिय है। दुकान की स्वीकृति स्थिति डैशबोर्ड में देखें।</p>}</section>}
 
-    {role === 'delivery' && tab === 0 && <section className="panel"><h2>आपको दिए गए काम</h2>{jobs.filter(j => !j.delivered_at).map(j => <div className="list-row" key={j.id}><div><strong>ऑर्डर #{j.order_id.slice(0,8)}</strong><p className="muted">पिकअप: {j.pickup_at ? new Date(j.pickup_at).toLocaleString('hi-IN') : 'लंबित'}</p></div><span className="tag">असाइन</span></div>)}{!jobs.filter(j => !j.delivered_at).length && <Empty text="अभी कोई डिलीवरी असाइन नहीं है।" />}<p className="notice">डिलीवरी स्टेटस, OTP और GPS अपडेट के सुरक्षित सर्वर फ़ंक्शन अभी उपलब्ध नहीं हैं।</p></section>}
+    {role === 'delivery' && tab === 0 && <section className="panel"><h2>आपको दिए गए काम</h2>{jobs.filter(j => !j.delivered_at).map(j => <div className="list-row" key={j.id}><div><strong>ऑर्डर #{j.order_id.slice(0,8)}</strong><p className="muted">स्थिति: {j.orders?.status || 'अपडेट उपलब्ध नहीं'} • पिकअप: {j.pickup_at ? new Date(j.pickup_at).toLocaleString('hi-IN') : 'लंबित'}</p><p className="muted">{j.orders?.delivery_address?.name || ''} • {j.orders?.delivery_address?.phone || ''}</p><p className="muted">{j.orders?.delivery_address?.address_line || ''}, {j.orders?.delivery_address?.locality || ''} - {j.orders?.delivery_address?.pincode || ''}</p></div><div className="actions">{j.orders?.status === 'assigned' && <button disabled={busy} onClick={() => updateDeliveryOrder(j.order_id,'picked_up')}>पिकअप करें</button>}{j.orders?.status === 'picked_up' && <button disabled={busy} onClick={() => updateDeliveryOrder(j.order_id,'delivered')}>डिलीवर करें</button>}</div></div>)}{!jobs.filter(j => !j.delivered_at).length && <Empty text="अभी कोई डिलीवरी असाइन नहीं है।" />}</section>}
     {role === 'delivery' && tab === 1 && <section className="panel"><h2>डिलीवरी इतिहास</h2>{jobs.filter(j => j.delivered_at).map(j => <div className="list-row" key={j.id}>ऑर्डर #{j.order_id.slice(0,8)}<strong>पूरा</strong></div>)}</section>}
     {role === 'delivery' && tab === 2 && <section className="panel"><h2>खाता</h2><p>{session.user.phone}</p><p>भूमिका: Delivery Partner</p><button className="secondary" onClick={signOut}>लॉगआउट</button></section>}
 
