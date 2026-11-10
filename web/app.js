@@ -61,31 +61,32 @@
           <div class="story-foot">Malaram Official • MALRO Admin</div>
         </section>
         <section class="login-side"><form class="login-card" id="loginForm">
-          <div class="brand-mark">M</div><h1 style="margin-top:22px">Admin Login</h1><p class="muted">अपने पंजीकृत Admin मोबाइल नंबर से OTP प्राप्त करें।</p>
-          <div class="field"><label>मोबाइल नंबर</label><input id="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+91 98765 43210" required maxlength="16" /></div>
-          <div id="otpField" class="field" hidden><label>OTP कोड</label><input id="otp" inputmode="numeric" autocomplete="one-time-code" placeholder="6 अंकों का OTP" maxlength="8" /></div>
-          <button class="primary full" id="sendOtp" type="button">OTP भेजें</button>
-          <button class="primary full" id="verifyOtp" type="submit" hidden>सुरक्षित Login करें</button>
+          <div class="brand-mark">M</div><h1 style="margin-top:22px">Admin Login</h1><p class="muted">अपना Admin पासवर्ड दर्ज करें।</p>
+          <div class="field"><label>Admin पासवर्ड</label><input id="adminPassword" type="password" autocomplete="current-password" placeholder="पासवर्ड दर्ज करें" required maxlength="100" /></div>
+          <button class="primary full" id="loginButton" type="submit">सुरक्षित Login करें</button>
           <div id="loginNotice" aria-live="polite"></div>
         </form></section>
       </div>`;
-    const form=root.querySelector("#loginForm"), phone=root.querySelector("#phone"), otp=root.querySelector("#otp");
-    const send=root.querySelector("#sendOtp"), verify=root.querySelector("#verifyOtp"), otpField=root.querySelector("#otpField"), notice=root.querySelector("#loginNotice");
-    send.onclick=async()=>{
-      const p=phoneClean(phone.value);if(!/^\+?[1-9]\d{9,14}$/.test(p)){notice.innerHTML='<div class="notice error">सही मोबाइल नंबर लिखें।</div>';return;}
-      send.disabled=true;send.textContent="OTP भेज रहे हैं…";
-      try{
-        await api("/auth/v1/otp","POST",{phone:p,create_user:false},"");
-        phone.value=p;phone.readOnly=true;otpField.hidden=false;send.hidden=true;verify.hidden=false;otp.focus();
-        notice.innerHTML='<div class="notice success">OTP भेज दिया गया है। अपना SMS देखें।</div>';
-      }catch(e){notice.innerHTML='<div class="notice error">'+esc(e.message)+'</div>';send.disabled=false;send.textContent="OTP फिर भेजें";}
-    };
+    const form=root.querySelector("#loginForm");
+    const input=root.querySelector("#adminPassword");
+    const button=root.querySelector("#loginButton");
+    const notice=root.querySelector("#loginNotice");
     form.onsubmit=async e=>{
-      e.preventDefault();verify.disabled=true;verify.textContent="जाँच हो रही है…";
+      e.preventDefault();
+      button.disabled=true;button.textContent="जाँच हो रही है…";
+      notice.innerHTML="";
       try{
-        const result=await api("/auth/v1/verify","POST",{type:"sms",phone:phone.value,token:otp.value.trim()},"");
-        saveSession(result);await checkAdmin();await dashboard();
-      }catch(err){clearSession();notice.innerHTML='<div class="notice error">'+esc(err.message)+'</div>';verify.disabled=false;verify.textContent="सुरक्षित Login करें";}
+        const login=await api("/functions/v1/admin-time-login","POST",{password:input.value},"");
+        if(!login.token_hash) throw new Error("सुरक्षित Login token नहीं मिला।");
+        const session=await api("/auth/v1/verify","POST",{type:"magiclink",token_hash:login.token_hash},"");
+        saveSession(session);
+        await checkAdmin();
+        await dashboard();
+      }catch(err){
+        clearSession();
+        notice.innerHTML='<div class="notice error">'+esc(err.message)+'</div>';
+        button.disabled=false;button.textContent="सुरक्षित Login करें";
+      }
     };
   };
   const navButton = (page,icon,label) => `<button data-page="${page}" class="${state.page===page?"active":""}"><span class="nav-icon">${icon}</span>${label}</button>`;
