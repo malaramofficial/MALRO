@@ -74,7 +74,7 @@ private object EncryptedSessionStore {
     }
 }
 
-private object MalroPhoneAuth {
+internal object MalroPhoneAuth {
     private fun request(path: String, body: JSONObject? = null, bearer: String? = null): JSONObject {
         val connection = URL(BuildConfig.SUPABASE_URL + path).openConnection() as HttpURLConnection
         try {
@@ -133,6 +133,28 @@ private object MalroPhoneAuth {
             EncryptedSessionStore.clear(context)
             false
         }
+    }
+
+    suspend fun currentAccessToken(context: Context): String = withContext(Dispatchers.IO) {
+        val saved = EncryptedSessionStore.read(context)
+            ?: throw IllegalStateException("लॉगिन सेशन समाप्त हो गया। दोबारा लॉगिन करें।")
+        if (saved.expiresAt > System.currentTimeMillis() / 1000 + 60) return@withContext saved.accessToken
+        val json = request("/auth/v1/token?grant_type=refresh_token",
+            JSONObject().put("refresh_token", saved.refreshToken))
+        val access = json.optString("access_token")
+        val refresh = json.optString("refresh_token")
+        if (access.isBlank() || refresh.isBlank()) {
+            EncryptedSessionStore.clear(context)
+            throw IllegalStateException("लॉगिन सेशन रिफ्रेश नहीं हुआ। दोबारा लॉगिन करें।")
+        }
+        EncryptedSessionStore.save(context, MalroSession(access, refresh,
+            System.currentTimeMillis() / 1000 + json.optLong("expires_in", 3600L)))
+        access
+    }
+
+    suspend fun currentUser(context: Context): JSONObject = withContext(Dispatchers.IO) {
+        val token = currentAccessToken(context)
+        request("/auth/v1/user", null, token)
     }
 
     suspend fun signOut(context: Context) = withContext(Dispatchers.IO) {
