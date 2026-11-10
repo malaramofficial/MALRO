@@ -159,7 +159,7 @@ export default function App() {
   })
   const addProduct = () => run(async () => {
     if (!activeShop) throw new Error('पहले स्वीकृत दुकान चुनें')
-    const { error } = await supabase.from('products').insert({ shop_id: activeShop, ...productForm, price_paise: Math.round(Number(productForm.price) * 100), stock_quantity: Number(productForm.stock), status: 'draft' })
+    const { error } = await supabase.from('products').insert({ shop_id: activeShop, name: productForm.name.trim(), description: productForm.description.trim() || null, category: productForm.category.trim(), price_paise: Math.round(Number(productForm.price) * 100), stock_quantity: Number(productForm.stock), status: 'draft' })
     if (error) throw error
     setProductForm({ name: '', description: '', category: 'किराना', price: '', stock: '' }); await refresh(session.user.id)
   })
