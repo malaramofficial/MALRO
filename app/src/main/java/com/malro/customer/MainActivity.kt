@@ -81,7 +81,12 @@ private fun MalroApp() {
                 val quantity = json.optInt(key)
                 if (quantity > 0) restored[key] = quantity
             }
-            cart = restored
+            val availableIds = products.map { it.id }.toSet()
+            cart = restored.filter { (id, quantity) ->
+                val product = products.firstOrNull { it.id == id }
+                id in availableIds && product != null && quantity in 1..product.stock
+            }
+            if (cart.size < restored.size) message = "कार्ट से अनुपलब्ध उत्पाद हटा दिए गए"
             cartRestored = true
         } catch (e: Exception) {
             message = e.message ?: "डेटा लोड नहीं हो पाया"
@@ -141,8 +146,13 @@ private fun MalroApp() {
                                 if (currentShop != null && currentShop != product.shopId) {
                                     message = "एक बार में एक ही दुकान से ऑर्डर करें। पहले कार्ट पूरा करें।"
                                 } else {
-                                    cart = cart + (product.id to ((cart[product.id] ?: 0) + 1))
-                                    message = product.name + " कार्ट में जुड़ गया"
+                                    val nextQuantity = (cart[product.id] ?: 0) + 1
+                                    if (nextQuantity > product.stock) {
+                                        message = "इस उत्पाद का उपलब्ध स्टॉक " + product.stock + " है"
+                                    } else {
+                                        cart = cart + (product.id to nextQuantity)
+                                        message = product.name + " कार्ट में जुड़ गया"
+                                    }
                                 }
                             },
                             onRefresh = {
@@ -353,6 +363,7 @@ private fun CartScreen(
                             Text("कुल राशि", color = Ink, fontWeight = FontWeight.Bold)
                             Text(money(total), color = Ink, fontWeight = FontWeight.Bold, fontSize = 19.sp)
                         }
+                        Text("डिलीवरी उसी क्षेत्र में उपलब्ध है जो दुकान के क्षेत्र से मेल खाता है।", color = Muted, fontSize = 12.sp)
                         Text("भुगतान: डिलीवरी पर नकद (COD) • डिलीवरी शुल्क अभी ₹0", color = Muted, fontSize = 12.sp)
                         Button(onClick = onCheckout, enabled = !busy && lines.isNotEmpty(), modifier = Modifier.fillMaxWidth()) {
                             if (busy) CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
