@@ -9,3 +9,7 @@ Independent responsive web client for the MALRO delivery role.
 4. Deploy this branch as a separate Vercel project with Root Directory `web` and the same three environment variables.
 
 This client enforces role checks in the UI, but database RLS and trusted Edge Functions remain the actual security boundary. Realtime updates require the relevant public tables to be enabled in the Supabase Realtime publication.
+
+## Test deployment
+
+This role-specific browser client is deployed separately for end-to-end MALRO testing. APK release is deferred until the shared Supabase workflows pass validation.
