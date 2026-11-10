@@ -126,13 +126,20 @@ private object MalroPhoneAuth {
         request("/auth/v1/otp", JSONObject().put("phone", phone))
     }
 
-    suspend fun verifyOtp(context: Context, phone: String, otp: String) = withContext(Dispatchers.IO) {
+    suspend fun verifyOtp(context: Context, phone: String, otp: String, fullName: String, shopName: String, address: String) = withContext(Dispatchers.IO) {
         val json = request("/auth/v1/verify", JSONObject()
             .put("type", "sms").put("phone", phone).put("token", otp))
         val access = json.optString("access_token")
         val refresh = json.optString("refresh_token")
         if (access.isBlank() || refresh.isBlank()) throw IllegalStateException("लॉगिन सेशन नहीं मिला")
-        if (!hasSellerAccess(access)) throw IllegalStateException("आपका विक्रेता खाता अभी सक्रिय नहीं है। पहले विक्रेता पंजीकरण पूरा करें।")
+        if (!hasSellerAccess(access)) {
+            request("/rest/v1/rpc/register_seller", JSONObject()
+                .put("p_full_name", fullName.trim())
+                .put("p_shop_name", shopName.trim())
+                .put("p_description", "")
+                .put("p_address", address.trim())
+                .put("p_locality", "Barmer"), access)
+        }
         EncryptedSessionStore.save(context, MalroSession(access, refresh,
             System.currentTimeMillis() / 1000 + json.optLong("expires_in", 3600L)))
     }
@@ -194,6 +201,9 @@ private fun PhoneOtpLogin(onAuthenticated: () -> Unit) {
     val scope = rememberCoroutineScope()
     var phoneDigits by remember { mutableStateOf("") }
     var otp by remember { mutableStateOf("") }
+    var fullName by remember { mutableStateOf("") }
+    var shopName by remember { mutableStateOf("") }
+    var shopAddress by remember { mutableStateOf("") }
     var otpSent by remember { mutableStateOf(false) }
     var loading by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf("") }
@@ -203,7 +213,7 @@ private fun PhoneOtpLogin(onAuthenticated: () -> Unit) {
             Text("MALRO", fontSize = 14.sp, fontWeight = FontWeight.Bold, letterSpacing = 3.sp)
             Spacer(Modifier.height(8.dp))
             Text("मोबाइल नंबर से लॉगिन", fontSize = 25.sp, fontWeight = FontWeight.Bold)
-            Text("आपके नंबर पर एक बार इस्तेमाल होने वाला OTP भेजा जाएगा।",
+            Text("OTP सत्यापन के बाद अपनी दुकान का पंजीकरण पूरा करें।",
                 style = MaterialTheme.typography.bodyMedium)
             Spacer(Modifier.height(22.dp))
             OutlinedTextField(value = phoneDigits,
@@ -213,6 +223,18 @@ private fun PhoneOtpLogin(onAuthenticated: () -> Unit) {
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                 enabled = !otpSent && !loading)
             if (otpSent) {
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(value = fullName, onValueChange = { fullName = it },
+                    modifier = Modifier.fillMaxWidth(), label = { Text("विक्रेता का पूरा नाम") }, singleLine = true,
+                    enabled = !loading)
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(value = shopName, onValueChange = { shopName = it },
+                    modifier = Modifier.fillMaxWidth(), label = { Text("दुकान का नाम") }, singleLine = true,
+                    enabled = !loading)
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(value = shopAddress, onValueChange = { shopAddress = it },
+                    modifier = Modifier.fillMaxWidth(), label = { Text("दुकान का पूरा पता") }, minLines = 2,
+                    enabled = !loading)
                 Spacer(Modifier.height(12.dp))
                 OutlinedTextField(value = otp,
                     onValueChange = { otp = it.filter(Char::isDigit).take(6) },
@@ -235,7 +257,9 @@ private fun PhoneOtpLogin(onAuthenticated: () -> Unit) {
                             message = "OTP भेजने का अनुरोध स्वीकार हुआ। SMS जाँचें।"
                         } else {
                             if (otp.length != 6) throw IllegalArgumentException("6 अंकों का OTP डालें")
-                            MalroPhoneAuth.verifyOtp(context, "+91$phoneDigits", otp)
+                            if (fullName.isBlank() || shopName.isBlank() || shopAddress.isBlank())
+                                throw IllegalArgumentException("नाम, दुकान का नाम और दुकान का पता भरें")
+                            MalroPhoneAuth.verifyOtp(context, "+91$phoneDigits", otp, fullName, shopName, shopAddress)
                             onAuthenticated()
                         }
                     } catch (e: Exception) {
