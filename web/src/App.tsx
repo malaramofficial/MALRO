@@ -228,8 +228,15 @@ function SellerGate() {
   }
 
   useEffect(() => {
-    if (saved) checkStatus(saved).catch((e: any) => setNotice(errText(e)))
-  }, [])
+    if (!saved) return
+    let active = true
+    const refreshStatus = () => checkStatus(saved).catch((e: any) => {
+      if (active) setNotice(errText(e))
+    })
+    refreshStatus()
+    const timer = window.setInterval(refreshStatus, 15000)
+    return () => { active = false; window.clearInterval(timer) }
+  }, [saved?.application_code, saved?.claim_secret])
 
   const submitApplication = async (e: React.FormEvent) => {
     e.preventDefault()
