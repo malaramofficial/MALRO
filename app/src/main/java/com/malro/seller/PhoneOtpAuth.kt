@@ -83,12 +83,12 @@ private object MalroPhoneAuth {
             connection.readTimeout = 15000
             connection.setRequestProperty("apikey", BuildConfig.SUPABASE_ANON_KEY)
             connection.setRequestProperty("Accept", "application/json")
+            if (bearer != null) connection.setRequestProperty("Authorization", "Bearer $bearer")
             if (body != null) {
-                connection.doOutput = true
                 connection.setRequestProperty("Content-Type", "application/json")
+                connection.doOutput = true
                 connection.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
             }
-            if (bearer != null) connection.setRequestProperty("Authorization", "Bearer $bearer")
             val code = connection.responseCode
             val response = (if (code in 200..299) connection.inputStream else connection.errorStream)
                 ?.bufferedReader()?.use { it.readText() }.orEmpty()
