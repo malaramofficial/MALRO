@@ -28,3 +28,7 @@ Native Android customer marketplace app for Barmer, built with Kotlin and Jetpac
 
 ## Build
 GitHub Actions workflow: .github/workflows/android-build.yml
+
+## Web testing rollout
+
+This branch is the live browser testing client for the MALRO role. It shares the MALRO Supabase project with the other role clients; native APK release is intentionally deferred until end-to-end testing is complete.
