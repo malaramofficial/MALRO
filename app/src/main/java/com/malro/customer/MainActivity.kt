@@ -186,14 +186,29 @@ private fun MalroApp() {
                                 }
                             }
                         )
-                        2 -> OrdersScreen(orders, busy) {
-                            scope.launch {
-                                busy = true
-                                try { orders = CustomerBackend.loadOrders(context, userId); message = "ऑर्डर अपडेट हो गए" }
-                                catch (e: Exception) { message = e.message ?: "ऑर्डर लोड नहीं हुए" }
-                                finally { busy = false }
+                        2 -> OrdersScreen(
+                            orders = orders, busy = busy,
+                            onRefresh = {
+                                scope.launch {
+                                    busy = true
+                                    try { orders = CustomerBackend.loadOrders(context, userId); message = "ऑर्डर अपडेट हो गए" }
+                                    catch (e: Exception) { message = e.message ?: "ऑर्डर लोड नहीं हुए" }
+                                    finally { busy = false }
+                                }
+                            },
+                            onCancel = { orderId ->
+                                scope.launch {
+                                    busy = true
+                                    try {
+                                        CustomerBackend.cancelOrder(context, orderId)
+                                        orders = CustomerBackend.loadOrders(context, userId)
+                                        products = CustomerBackend.loadProducts(context)
+                                        message = "ऑर्डर रद्द हो गया और स्टॉक वापस जोड़ दिया गया"
+                                    } catch (e: Exception) { message = e.message ?: "ऑर्डर रद्द नहीं हो पाया" }
+                                    finally { busy = false }
+                                }
                             }
-                        }
+                        )
                         else -> AccountScreen(
                             nameInput, { nameInput = it }, phone, busy,
                             onSave = {
@@ -351,7 +366,7 @@ private fun CartScreen(
 }
 
 @Composable
-private fun OrdersScreen(orders: List<CustomerOrder>, busy: Boolean, onRefresh: () -> Unit) {
+private fun OrdersScreen(orders: List<CustomerOrder>, busy: Boolean, onRefresh: () -> Unit, onCancel: (String) -> Unit) {
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("मेरे ऑर्डर", modifier = Modifier.weight(1f), color = Ink, fontWeight = FontWeight.Bold, fontSize = 23.sp)
@@ -378,6 +393,11 @@ private fun OrdersScreen(orders: List<CustomerOrder>, busy: Boolean, onRefresh: 
                             Text("भुगतान: " + if (order.paymentStatus == "paid") "भुगतान हो गया" else "डिलीवरी पर नकद / लंबित",
                                 color = Muted, fontSize = 12.sp)
                             Text("ऑर्डर आईडी: " + order.id.take(8), color = Muted, fontSize = 10.sp)
+                            if (order.status == "placed") {
+                                OutlinedButton(onClick = { onCancel(order.id) }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
+                                    Text("ऑर्डर रद्द करें")
+                                }
+                            }
                         }
                     }
                 }
