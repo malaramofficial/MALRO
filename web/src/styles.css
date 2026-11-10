@@ -101,3 +101,16 @@ footer{color:#8a95a4}
 }
 @media(max-width:360px){.product-grid,.shop-grid{grid-template-columns:1fr}.metric-grid{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+/* Customer marketplace shop cards */
+.shop-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,245px),1fr));gap:16px}
+.shop-card{overflow:hidden;border:1px solid #e5e9ef;border-radius:20px;background:#fff;box-shadow:0 8px 24px rgba(19,37,58,.07);cursor:pointer;transition:transform .18s ease,box-shadow .18s ease}
+.shop-card:hover{transform:translateY(-3px);box-shadow:0 16px 36px rgba(19,37,58,.12)}
+.shop-card-photo{height:158px;position:relative;display:grid;place-items:center;background:linear-gradient(135deg,#e9edf2,#f7efdf);color:#8793a2;font-size:13px;font-weight:700}
+.shop-card-photo img{width:100%;height:100%;object-fit:cover}
+.shop-open{position:absolute;right:12px;bottom:12px;border-radius:20px;padding:7px 11px;background:linear-gradient(135deg,#142b45,#7b293d);color:#fff;font-size:11px;font-weight:800;box-shadow:0 5px 16px #142b4540}
+.shop-card-body{padding:15px 16px}.shop-card-body h3{margin:0 0 7px;color:#172b44;font-size:17px}.shop-card-body p{margin:0;color:#778496;font-size:12px;line-height:1.5;min-height:34px}
+.shop-card-foot{display:flex;justify-content:space-between;align-items:center;margin-top:13px;padding-top:12px;border-top:1px solid #edf0f3;font-size:12px;color:#748094}.shop-card-foot strong{color:#8b6a31}
+.selected-shop-heading{display:flex;align-items:center;gap:14px;margin:18px 0}.selected-shop-heading img,.selected-shop-placeholder{width:76px;height:68px;border-radius:14px;object-fit:cover;background:#f1eadc;display:grid;place-items:center;color:#a8894e;font-weight:900}.selected-shop-heading h2{margin:0 0 5px}.selected-shop-heading p{margin:0}
+@media(max-width:650px){.shop-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.shop-card-photo{height:116px}.shop-card-body{padding:12px}.shop-card-body h3{font-size:14px}.shop-card-body p{font-size:11px}.shop-card-foot{font-size:10px}.selected-shop-heading img,.selected-shop-placeholder{width:64px;height:58px}}
+@media(max-width:360px){.shop-grid{grid-template-columns:1fr}.shop-card-photo{height:150px}}
