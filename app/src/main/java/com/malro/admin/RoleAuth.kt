@@ -103,7 +103,11 @@ object RoleAuth {
             true
         }catch(_:Exception){AdminSessionStore.clear(c);false}
     }
-    suspend fun currentAccessToken(c:Context):String?=withContext(Dispatchers.IO){\n        if(!restore(c)) return@withContext null\n        AdminSessionStore.read(c)?.access\n    }\n    suspend fun logout(c:Context)=withContext(Dispatchers.IO){
+    suspend fun currentAccessToken(c:Context):String?=withContext(Dispatchers.IO){
+        if(!restore(c)) return@withContext null
+        AdminSessionStore.read(c)?.access
+    }
+    suspend fun logout(c:Context)=withContext(Dispatchers.IO){
         val s=AdminSessionStore.read(c)
         try{if(s!=null)request("/auth/v1/logout",JSONObject(),s.access)}catch(_:Exception){}
         AdminSessionStore.clear(c)
