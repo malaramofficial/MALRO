@@ -55,7 +55,7 @@ This is a public read/connectivity integration only. It does **not** yet impleme
 - TextBee credentials and device identifiers must never be committed to Git or placed in any Android build configuration.
 - The Edge Function must be deployed with JWT verification disabled because Auth Hook requests are authenticated by their Standard Webhooks signature, not a user JWT. The function independently verifies that signature.
 - TextBee HTTP 200 means accepted/queued by TextBee, not confirmed delivery to the handset. Delivery must be checked in TextBee message status.
-- **Not yet live:** the function is deployed as code only. Its three secrets and the Supabase Auth Send SMS Hook dashboard configuration still need to be set. No SMS was sent during setup and no paid SMS provider was enabled.
+- **Not yet live:** function source is committed to GitHub, but deployment was not completed. The function must be deployed with JWT verification disabled (it verifies the signed Auth Hook itself), then its three secrets and the Supabase Auth Send SMS Hook dashboard configuration must be set. No SMS was sent during setup and no paid SMS provider was enabled.
 
 ### One-time TextBee configuration
 
