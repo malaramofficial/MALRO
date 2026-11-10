@@ -33,8 +33,15 @@ Deno.serve(async (req: Request) => {
   const formatter = new Intl.DateTimeFormat("en-GB", {
     timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hourCycle: "h23"
   });
-  const currentHHmm = formatter.format(new Date()).replace(":", "");
-  if (!supplied.endsWith(currentHHmm)) return reply({ error: "पासवर्ड गलत है या समय बदल गया है।" }, 401);
+  // Allow the immediately adjacent minute too, so typing/submitting at a
+  // minute boundary does not reject a password that was just generated.
+  const validTimeCodes = [-1, 0, 1].map(offset => {
+    const d = new Date(Date.now() + offset * 60 * 1000);
+    return formatter.format(d).replace(":", "");
+  });
+  if (!validTimeCodes.some(code => supplied.endsWith(code))) {
+    return reply({ error: "पासवर्ड गलत है या समय बदल गया है।" }, 401);
+  }
 
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
     || req.headers.get("x-real-ip") || "unknown";
