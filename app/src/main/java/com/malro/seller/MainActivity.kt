@@ -39,25 +39,33 @@ class MainActivity:ComponentActivity(){
      BackendConnectionStatus()
     }
     when(tab){
-     0->{var added by remember { mutableIntStateOf(3) }
- var stock by remember { mutableIntStateOf(41) }
- Column(Modifier.fillMaxSize().padding(18.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
-  Text("आपकी दुकान",fontSize=26.sp,fontWeight=FontWeight.Bold,color=Ink)
-  Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){Metric("उत्पाद",added.toString(),Modifier.weight(1f));Metric("कुल स्टॉक",stock.toString(),Modifier.weight(1f))}
-  Button(onClick={added++;stock++},modifier=Modifier.fillMaxWidth()){Text("+ नया डेमो उत्पाद जोड़ें")}
-  Text("उत्पाद सूची",fontWeight=FontWeight.Bold,color=Ink)
-  listOf("बाजरे का आटा","मूंग दाल","देसी घी").forEach { p -> Card(colors=CardDefaults.cardColors(containerColor=Color.White)){Row(Modifier.fillMaxWidth().padding(14.dp),verticalAlignment=Alignment.CenterVertically){Text(p,Modifier.weight(1f),color=Ink);TextButton(onClick={stock=(stock-1).coerceAtLeast(0)}){Text("− स्टॉक")};TextButton(onClick={stock++}){Text("+")}}} }
-  Text("यह अभी डेमो डैशबोर्ड है। विक्रेता दुकान का सत्यापन और लाइव उत्पाद API अगली स्टेज में जुड़ेंगे।",fontSize=12.sp,color=Color.Gray)
- }}
-     1->{Column(Modifier.fillMaxSize().padding(22.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){Text("उत्पाद",fontSize=25.sp,fontWeight=FontWeight.Bold,color=Ink);Text("लाइव उत्पाद सूची बैकएंड इंटीग्रेशन के बाद दिखेगी।",color=Color.Gray)}}
-     else->{Column(Modifier.fillMaxSize().padding(22.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){Text("ऑर्डर",fontSize=25.sp,fontWeight=FontWeight.Bold,color=Ink);Text("लाइव ऑर्डर बैकएंड इंटीग्रेशन के बाद दिखेंगे।",color=Color.Gray)}}
+     0->Column(Modifier.fillMaxSize().padding(18.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
+      Text("आपकी दुकान सक्रिय है",fontSize=25.sp,fontWeight=FontWeight.Bold,color=Ink)
+      Card(colors=CardDefaults.cardColors(containerColor=Color.White),shape=RoundedCornerShape(18.dp)){
+       Column(Modifier.fillMaxWidth().padding(18.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
+        Text("Admin Approval सफल",fontWeight=FontWeight.Bold,color=Ink,fontSize=18.sp)
+        Text("आपका Seller अकाउंट MALRO में सक्रिय कर दिया गया है।",color=Color.Gray)
+        Text("अब आप अपने Seller ID और पासवर्ड से सुरक्षित Login कर सकते हैं।",color=Color.Gray)
+       }
+      }
+      Text("अगला चरण",fontWeight=FontWeight.Bold,color=Ink)
+      Card(colors=CardDefaults.cardColors(containerColor=Color.White),shape=RoundedCornerShape(18.dp)){
+       Column(Modifier.fillMaxWidth().padding(18.dp),verticalArrangement=Arrangement.spacedBy(6.dp)){
+        Text("उत्पाद और ऑर्डर प्रबंधन",fontWeight=FontWeight.Bold,color=Ink)
+        Text("दुकान में उत्पाद जोड़ना, कीमत/स्टॉक बदलना और ग्राहक के ऑर्डर संभालना अगले बैकएंड इंटीग्रेशन चरण में जोड़ा जाएगा।",color=Color.Gray,fontSize=13.sp)
+       }
+      }
+     }
+     1->Column(Modifier.fillMaxSize().padding(22.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+      Text("उत्पाद",fontSize=25.sp,fontWeight=FontWeight.Bold,color=Ink)
+      Text("लाइव उत्पाद जोड़ना और स्टॉक अपडेट अगली इंटीग्रेशन स्टेज में आएगा।",color=Color.Gray)
+     }
+     else->Column(Modifier.fillMaxSize().padding(22.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+      Text("ऑर्डर",fontSize=25.sp,fontWeight=FontWeight.Bold,color=Ink)
+      Text("लाइव ग्राहक ऑर्डर अगली इंटीग्रेशन स्टेज में आएँगे।",color=Color.Gray)
+     }
     }
    }
   }
- }
-}
-@Composable private fun Metric(label:String,value:String,modifier:Modifier=Modifier){
- Card(modifier,colors=CardDefaults.cardColors(containerColor=Color.White),shape=RoundedCornerShape(16.dp)){
-  Column(Modifier.padding(16.dp)){Text(label,color=Color.Gray,fontSize=12.sp);Text(value,color=Ink,fontWeight=FontWeight.Bold,fontSize=25.sp)}
  }
 }
