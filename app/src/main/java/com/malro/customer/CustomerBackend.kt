@@ -115,7 +115,7 @@ object CustomerBackend {
             val itemRows = row.optJSONArray("order_items") ?: JSONArray()
             val itemLabels = (0 until itemRows.length()).map { itemIndex ->
                 val item = itemRows.getJSONObject(itemIndex)
-                "\${item.optString("product_name_snapshot")} × \${item.optInt("quantity")}"
+                "${item.optString("product_name_snapshot")} × ${item.optInt("quantity")}"
             }
             val address = row.optJSONObject("delivery_address") ?: JSONObject()
             val addressLabel = listOf(address.optString("address_line"), address.optString("locality"), address.optString("pincode"))
