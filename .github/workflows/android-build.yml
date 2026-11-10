@@ -1,7 +1,5 @@
-name: Android APK Build
+name: Android APK Build (Manual Fallback)
 on:
-  push:
-    branches: ["app/seller"]
   workflow_dispatch:
 permissions:
   contents: read
@@ -18,8 +16,8 @@ jobs:
         with:
           gradle-version: "8.9"
       - name: Build debug APK
-        run: gradle --no-daemon assembleDebug
+        run: gradle --no-daemon :app:assembleDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: malro-seller-debug-apk
+          name: malro-seller-debug-apk-manual
           path: app/build/outputs/apk/debug/*.apk
