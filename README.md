@@ -20,3 +20,7 @@ Android application for MALRO's own delivery operations in Barmer.
 
 ## Implementation
 Kotlin + Jetpack Compose. Shared UI and domain contracts are coordinated through `main`.
+
+## Web testing rollout
+
+This branch is the live browser testing client for the MALRO role. It shares the MALRO Supabase project with the other role clients; native APK release is intentionally deferred until end-to-end testing is complete.
