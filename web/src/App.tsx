@@ -57,7 +57,11 @@ export default function App() {
         if (o.error) throw o.error
         setProducts(p.data || [])
         setOrders(o.data || [])
-        if (!activeShop || !ids.includes(activeShop)) setActiveShop(ids[0])
+        if (!activeShop || !ids.includes(activeShop)) {
+          setActiveShop(ids[0])
+          const firstShop = (s.data || [])[0]
+          if (firstShop) setShopForm({ name: firstShop.name || '', phone: firstShop.phone || '', address: firstShop.address || '', locality: firstShop.locality || '' })
+        }
       } else { setProducts([]); setOrders([]) }
     } else if (role === 'delivery') {
       const j = await supabase.from('delivery_jobs').select('id,order_id,pickup_at,delivered_at,last_latitude,last_longitude').eq('delivery_user_id', userId).order('created_at', { ascending: false })
