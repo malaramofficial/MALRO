@@ -59,16 +59,18 @@ private object EncryptedSessionStore {
             .putString(ENTRY, Base64.encodeToString(packed, Base64.NO_WRAP)).apply()
     }
 
-    fun read(context: Context): MalroSession? = try {
-        val encoded = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(ENTRY, null)
-            ?: return null
-        val packed = Base64.decode(encoded, Base64.NO_WRAP)
-        if (packed.size < 13) return null
-        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        cipher.init(Cipher.DECRYPT_MODE, key(), GCMParameterSpec(128, packed.copyOfRange(0, 12)))
-        val json = JSONObject(String(cipher.doFinal(packed.copyOfRange(12, packed.size)), Charsets.UTF_8))
-        MalroSession(json.getString("access"), json.getString("refresh"), json.getLong("expires"))
-    } catch (_: Exception) { null }
+    fun read(context: Context): MalroSession? {
+        return try {
+            val encoded = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(ENTRY, null)
+                ?: return null
+            val packed = Base64.decode(encoded, Base64.NO_WRAP)
+            if (packed.size < 13) return null
+            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+            cipher.init(Cipher.DECRYPT_MODE, key(), GCMParameterSpec(128, packed.copyOfRange(0, 12)))
+            val json = JSONObject(String(cipher.doFinal(packed.copyOfRange(12, packed.size)), Charsets.UTF_8))
+            MalroSession(json.getString("access"), json.getString("refresh"), json.getLong("expires"))
+        } catch (_: Exception) { null }
+    }
 
     fun clear(context: Context) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove(ENTRY).apply()
