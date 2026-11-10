@@ -120,6 +120,7 @@ export default function App() {
   })
   const signOut = () => run(async () => { await supabase.auth.signOut(); setSession(null); setProfile(null) })
 
+  if (!session && role === 'seller') return <SellerGate />
   if (!session) return <main className="auth-wrap"><section className="auth-card"><div className="brand-mark">M</div><p className="eyebrow">MALRO • BARMER</p><h1>{meta.title}</h1><p className="muted">{meta.subtitle}</p><label>मोबाइल नंबर</label><input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+919876543210" inputMode="tel" />{otpSent && <><label>SMS OTP</label><input value={otp} onChange={e => setOtp(e.target.value)} placeholder="6 अंकों का OTP" inputMode="numeric" maxLength={6} /></>}{!otpSent ? <button disabled={busy} onClick={sendOtp}>{busy ? 'भेज रहे हैं…' : 'OTP भेजें'}</button> : <button disabled={busy || otp.trim().length < 6} onClick={verifyOtp}>{busy ? 'जाँच रहे हैं…' : 'OTP सत्यापित करें'}</button>}{notice && <p className="notice">{notice}</p>}<p className="tiny">सुरक्षित लॉगिन • Supabase OTP</p></section></main>
 
   const roleAllowed = role === 'customer' ? profile?.account_role === 'customer'
@@ -196,6 +197,150 @@ export default function App() {
     </main><nav className="bottom-nav">{meta.tabs.map((label, i) => <button key={label} className={tab===i?'active':''} onClick={() => setTab(i)}>{label}</button>)}</nav>
     <footer>© MALRO • सुरक्षित, भूमिका-आधारित कार्यक्षेत्र</footer>
   </div>
+}
+
+
+const SELLER_CLAIM_KEY = 'malro_seller_application_claim'
+
+function SellerGate() {
+  const [mode, setMode] = useState<'register' | 'status' | 'login'>(() => {
+    try { return localStorage.getItem(SELLER_CLAIM_KEY) ? 'status' : 'register' } catch { return 'register' }
+  })
+  const [form, setForm] = useState({ full_name: '', phone: '', shop_name: '', description: '', address: '', locality: 'Barmer' })
+  const [saved, setSaved] = useState<{ application_code: string; claim_secret: string } | null>(() => {
+    try { return JSON.parse(localStorage.getItem(SELLER_CLAIM_KEY) || 'null') } catch { return null }
+  })
+  const [applicationStatus, setApplicationStatus] = useState<any>(null)
+  const [sellerPassword, setSellerPassword] = useState('')
+  const [loginId, setLoginId] = useState('')
+  const [loginPassword, setLoginPassword] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [notice, setNotice] = useState('')
+
+  const checkStatus = async (claim = saved) => {
+    if (!claim) return
+    const { data, error } = await supabase.functions.invoke('request-seller-onboarding', {
+      body: { action: 'status', ...claim },
+    })
+    if (error) throw error
+    setApplicationStatus(data)
+    if (data.setup_completed) setMode('login')
+  }
+
+  useEffect(() => {
+    if (saved) checkStatus(saved).catch((e: any) => setNotice(errText(e)))
+  }, [])
+
+  const submitApplication = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setBusy(true); setNotice('')
+    try {
+      const { data, error } = await supabase.functions.invoke('request-seller-onboarding', {
+        body: { action: 'submit', ...form },
+      })
+      if (error) throw error
+      const claim = { application_code: data.application_code, claim_secret: data.claim_secret }
+      localStorage.setItem(SELLER_CLAIM_KEY, JSON.stringify(claim))
+      setSaved(claim)
+      setApplicationStatus({ status: 'pending', setup_completed: false })
+      setMode('status')
+      setNotice('आपका आवेदन सफलतापूर्वक जमा हो गया है।')
+    } catch (e: any) { setNotice(errText(e)) }
+    finally { setBusy(false) }
+  }
+
+  const finishAccount = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!saved || !applicationStatus?.seller_code) return
+    setBusy(true); setNotice('')
+    try {
+      const sellerCode = applicationStatus.seller_code
+      const { error } = await supabase.functions.invoke('complete-seller-account', {
+        body: {
+          application_code: saved.application_code,
+          claim_secret: saved.claim_secret,
+          seller_code: sellerCode,
+          password: sellerPassword,
+        },
+      })
+      if (error) throw error
+      const { error: loginError } = await supabase.auth.signInWithPassword({
+        email: 'seller-' + sellerCode.toLowerCase() + '@malro.app',
+        password: sellerPassword,
+      })
+      if (loginError) throw loginError
+      localStorage.removeItem(SELLER_CLAIM_KEY)
+      window.location.reload()
+    } catch (e: any) { setNotice(errText(e)) }
+    finally { setBusy(false) }
+  }
+
+  const login = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setBusy(true); setNotice('')
+    try {
+      const id = loginId.trim().toLowerCase()
+      if (!id) throw new Error('Seller ID दर्ज करें।')
+      const { error } = await supabase.auth.signInWithPassword({
+        email: 'seller-' + id + '@malro.app',
+        password: loginPassword,
+      })
+      if (error) throw error
+      window.location.reload()
+    } catch (e: any) { setNotice(errText(e)) }
+    finally { setBusy(false) }
+  }
+
+  const clearApplication = () => {
+    localStorage.removeItem(SELLER_CLAIM_KEY)
+    setSaved(null); setApplicationStatus(null); setMode('register'); setNotice('')
+  }
+
+  return <main className="auth-wrap">
+    <section className="auth-card" style={{ width: 'min(100%, 560px)' }}>
+      <div className="brand-mark">M</div>
+      <p className="eyebrow">MALRO • SELLER PARTNER</p>
+      <h1>विक्रेता पोर्टल</h1>
+      <p className="muted">बिना OTP पंजीकरण • Admin की स्वीकृति के बाद अपना पासवर्ड बनाएँ</p>
+
+      <div style={{ display: 'flex', gap: 8, margin: '18px 0' }}>
+        <button type="button" className={mode === 'register' || mode === 'status' ? '' : 'secondary'} onClick={() => setMode(saved ? 'status' : 'register')}>नया आवेदन / स्थिति</button>
+        <button type="button" className={mode === 'login' ? '' : 'secondary'} onClick={() => setMode('login')}>Seller Login</button>
+      </div>
+
+      {mode === 'register' && <form onSubmit={submitApplication}>
+        <div className="form-grid">
+          <label>विक्रेता का पूरा नाम<input required minLength={2} maxLength={100} value={form.full_name} onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))} /></label>
+          <label>मोबाइल नंबर (वैकल्पिक)<input inputMode="tel" maxLength={20} placeholder="OTP नहीं आएगा" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} /></label>
+          <label>दुकान का नाम<input required minLength={2} maxLength={120} value={form.shop_name} onChange={e => setForm(f => ({ ...f, shop_name: e.target.value }))} /></label>
+          <label>गाँव / शहर<input required maxLength={100} value={form.locality} onChange={e => setForm(f => ({ ...f, locality: e.target.value }))} /></label>
+          <label style={{ gridColumn: '1 / -1' }}>दुकान का विवरण<textarea maxLength={1000} rows={3} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} /></label>
+          <label style={{ gridColumn: '1 / -1' }}>दुकान का पूरा पता<textarea required minLength={5} maxLength={500} rows={3} value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} /></label>
+        </div>
+        <button type="submit" disabled={busy}>{busy ? 'आवेदन भेज रहे हैं…' : 'आवेदन Submit करें'}</button>
+      </form>}
+
+      {mode === 'status' && <section>
+        {saved ? <>
+          <div className="notice"><strong>आवेदन ID:</strong> {saved.application_code}<br/><strong>सुरक्षा कोड:</strong> {saved.claim_secret}<br/>इन दोनों कोड को सुरक्षित रखें। दूसरे डिवाइस पर स्थिति देखने या अकाउंट बनाने के लिए इनकी जरूरत होगी।</div>
+          {!applicationStatus && <p className="muted">आवेदन की स्थिति लोड हो रही है।</p>}
+          {applicationStatus?.status === 'pending' && <><h2>आवेदन लंबित है</h2><p className="notice">आपका आवेदन Admin Panel पर पहुँच गया है। स्वीकृति मिलते ही यहीं Seller ID और पासवर्ड बनाने का विकल्प दिखेगा।</p><button type="button" className="secondary" disabled={busy} onClick={() => { setBusy(true); checkStatus().then(() => setNotice('स्थिति अपडेट हो गई।')).catch((e: any) => setNotice(errText(e))).finally(() => setBusy(false)) }}>स्थिति जाँचें</button></>}
+          {applicationStatus?.status === 'approved' && !applicationStatus.setup_completed && <><h2>आवेदन स्वीकृत ✓</h2><p className="notice">आपकी Seller ID जारी हो गई है। अब अपना नया पासवर्ड बनाएँ।</p><div className="credential" style={{ margin: '14px 0', padding: 12, background: '#f5f7fa', borderRadius: 12 }}><small>आपकी Seller ID</small><strong style={{ display: 'block', fontSize: 20 }}>{applicationStatus.seller_code}</strong></div><form onSubmit={finishAccount}><label>नया पासवर्ड<input type="password" required minLength={8} maxLength={72} autoComplete="new-password" value={sellerPassword} onChange={e => setSellerPassword(e.target.value)} /></label><label>पासवर्ड दोबारा लिखें<input type="password" required minLength={8} maxLength={72} autoComplete="new-password" value={(form as any).confirmPassword || ''} onChange={e => setForm(f => ({ ...f, confirmPassword: e.target.value } as any))} /></label><button type="submit" disabled={busy || sellerPassword.length < 8 || sellerPassword !== (form as any).confirmPassword}>{busy ? 'अकाउंट बना रहे हैं…' : 'Seller Account बनाएँ'}</button></form></>}
+          {applicationStatus?.status === 'approved' && applicationStatus.setup_completed && <><h2>अकाउंट बन चुका है ✓</h2><p className="notice">अब अपनी Seller ID और बनाए गए पासवर्ड से Login करें।</p><button type="button" onClick={() => { setLoginId(applicationStatus.seller_code || ''); setMode('login') }}>Login करें</button></>}
+          {applicationStatus?.status === 'rejected' && <><h2>आवेदन स्वीकृत नहीं हुआ</h2><p className="notice">{applicationStatus.admin_note || 'कृपया Admin से संपर्क करें।'}</p><button type="button" onClick={clearApplication}>नया आवेदन भरें</button></>}
+        </> : <p className="muted">इस डिवाइस पर आवेदन की जानकारी नहीं मिली।</p>}
+      </section>}
+
+      {mode === 'login' && <form onSubmit={login}>
+        <label>Seller ID<input required autoCapitalize="characters" value={loginId} onChange={e => setLoginId(e.target.value)} placeholder="MALRO-S-XXXXXXXXXX" /></label>
+        <label>पासवर्ड<input required type="password" autoComplete="current-password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} /></label>
+        <button type="submit" disabled={busy}>{busy ? 'Login हो रहा है…' : 'Login करें'}</button>
+      </form>}
+
+      {notice && <p className="notice" role="status">{notice}</p>}
+      <p className="tiny">MALRO Seller • मोबाइल OTP या मोबाइल Login आवश्यक नहीं है</p>
+    </section>
+  </main>
 }
 
 function Metric({label,value}:{label:string;value:number}) { return <div className="metric"><span>{label}</span><strong>{value}</strong></div> }
