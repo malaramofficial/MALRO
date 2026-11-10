@@ -118,3 +118,76 @@ footer{color:#8a95a4}
 .gps-checkout{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:16px 0;padding:14px;border:1px solid #dbe5ed;border-radius:16px;background:#f4f8fb}
 .gps-checkout strong{color:#173b62}.gps-checkout p{margin:5px 0 0}.gps-checkout button{flex-shrink:0}
 @media(max-width:480px){.gps-checkout{align-items:stretch;flex-direction:column}.gps-checkout button{width:100%}}
+
+/* MALRO marketplace storefront refresh */
+.customer-app{--accent:#142b45}
+.customer-marketplace .page-heading{display:none}
+.customer-app .topbar{height:76px;padding-inline:clamp(16px,4vw,34px)}
+.customer-app .topbar .wordmark{font-size:21px;letter-spacing:2px}
+.customer-app .user-pill{font-weight:700;color:#26384d}
+.customer-app .user-pill .text-button{color:#7b293d;font-weight:800}
+.market-welcome{position:relative;isolation:isolate;display:flex;align-items:center;justify-content:space-between;min-height:230px;overflow:hidden;margin:4px 0 28px;padding:30px 34px;border-radius:28px;background:linear-gradient(115deg,#10263f 0%,#1b3856 55%,#70283f 120%);box-shadow:0 18px 42px rgba(17,39,63,.18);color:#fff}
+.market-welcome:before,.market-welcome:after{content:"";position:absolute;z-index:-1;border:1px solid rgba(241,211,151,.22);border-radius:50%}
+.market-welcome:before{width:310px;height:310px;right:5%;top:-205px;box-shadow:0 0 0 26px rgba(241,211,151,.035),0 0 0 55px rgba(241,211,151,.025)}
+.market-welcome:after{width:180px;height:180px;right:20%;bottom:-145px}
+.market-welcome-copy{max-width:620px}
+.market-kicker{font-size:10px;font-weight:900;letter-spacing:2px;color:#e8c982}
+.market-welcome h2{margin:10px 0;font-size:clamp(28px,5vw,43px);line-height:1.16;letter-spacing:-.8px;color:#fff}
+.market-welcome p{margin:0;color:#e1e7ee;font-size:14px}
+.market-trust{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:20px;color:#f4dfb2;font-size:11px;font-weight:700}
+.market-welcome-art{position:relative;display:grid;place-items:center;width:126px;height:126px;flex:0 0 126px;margin-right:5%;border:1px solid rgba(245,220,169,.5);border-radius:38px;background:linear-gradient(145deg,#f4dfae,#c49a52);box-shadow:0 18px 35px rgba(0,0,0,.2);transform:rotate(7deg)}
+.market-welcome-art span{font-size:66px;filter:drop-shadow(0 7px 5px rgba(68,43,16,.18))}
+.market-welcome-art i{position:absolute;right:-12px;top:-16px;color:#f7dda3;font-size:28px;font-style:normal}
+.market-section{padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important}
+.market-section-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 17px}
+.market-section-head h2{margin:5px 0 4px;font-size:23px;color:#142b45;letter-spacing:-.5px}
+.market-section-head p{margin:0;color:#788596;font-size:12px}
+.market-count{padding:9px 13px;border:1px solid #eadfc9;border-radius:30px;background:#fbf6eb;color:#87652e;font-size:11px;font-weight:800;white-space:nowrap}
+.customer-app .shop-grid{grid-template-columns:repeat(auto-fill,minmax(min(100%,260px),1fr));gap:17px}
+.customer-app .shop-card{border-radius:22px;border:1px solid #e9e5dc;box-shadow:0 9px 25px rgba(22,39,58,.065);background:#fff;transition:transform .2s ease,box-shadow .2s ease}
+.customer-app .shop-card:hover{transform:translateY(-4px);box-shadow:0 17px 36px rgba(22,39,58,.13)}
+.customer-app .shop-card-photo{height:174px;background:linear-gradient(135deg,#f4eddf,#e8edf2)}
+.customer-app .shop-card-photo img{transition:transform .35s ease}
+.customer-app .shop-card:hover .shop-card-photo img{transform:scale(1.045)}
+.customer-app .shop-card-body{padding:16px 17px}
+.customer-app .shop-card-body h3{font-size:17px}
+.customer-app .shop-card-foot{padding-top:13px}
+.customer-app .shop-open{background:linear-gradient(135deg,#142b45,#7b293d);padding:8px 13px}
+.customer-app .selected-shop-heading{padding:14px;border:1px solid #ece8df;border-radius:18px;background:#fff;box-shadow:0 5px 18px rgba(19,37,58,.045)}
+.customer-app .product-grid{grid-template-columns:repeat(auto-fill,minmax(min(100%,220px),1fr));gap:15px}
+.customer-app .product-card{border-radius:20px}
+.customer-app .product-image{height:142px;position:relative;display:grid;place-items:center;overflow:hidden;background:radial-gradient(circle at 72% 22%,#fff 0,transparent 32%),linear-gradient(145deg,#f7f0e2,#e8edf3)}
+.customer-app .product-image:after{content:"";position:absolute;width:105px;height:105px;border-radius:50%;background:rgba(255,255,255,.45);box-shadow:0 0 0 14px rgba(255,255,255,.16)}
+.customer-app .product-image span{position:relative;z-index:1;font-size:54px;filter:drop-shadow(0 8px 6px rgba(30,42,55,.12))}
+.customer-app .product-image small{position:absolute;left:10px;bottom:9px;z-index:2;padding:5px 8px;border-radius:20px;background:rgba(255,255,255,.86);color:#80612e;font-size:9px;font-weight:800}
+.customer-app .card-body{padding:15px}
+.customer-app .card-body>strong{display:block;margin:9px 0;color:#142b45;font-size:16px}
+.customer-app .card-body>button{width:100%;margin:5px 0 7px;background:linear-gradient(120deg,#142b45,#70283f);border-radius:12px}
+.customer-app .card-body>small{display:block;color:#7c8998;font-size:10px}
+.customer-app .card-body label{font-size:11px}
+.customer-app .bottom-nav{padding-top:12px}
+.customer-app .bottom-nav button{min-height:43px}
+@media(max-width:650px){
+ .customer-app .topbar{height:66px;padding-inline:14px}
+ .market-welcome{min-height:205px;margin:0 0 23px;padding:23px 20px;border-radius:23px}
+ .market-welcome h2{font-size:29px}
+ .market-welcome p{max-width:245px;font-size:12px;line-height:1.55}
+ .market-trust{display:grid;gap:6px;margin-top:15px;font-size:10px}
+ .market-welcome-art{width:76px;height:76px;flex-basis:76px;margin-right:0;border-radius:25px}
+ .market-welcome-art span{font-size:42px}
+ .market-welcome-art i{font-size:20px}
+ .market-section-head h2{font-size:20px}
+ .customer-app .shop-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}
+ .customer-app .shop-card-photo{height:122px}
+ .customer-app .shop-card-body{padding:12px}
+ .customer-app .shop-card-body h3{font-size:14px}
+ .customer-app .shop-card-body p{font-size:10px;min-height:32px}
+ .customer-app .shop-card-foot{font-size:9px}
+ .customer-app .shop-open{right:7px;bottom:7px;padding:6px 8px;font-size:9px}
+ .customer-app .product-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+ .customer-app .product-image{height:105px}
+ .customer-app .product-image span{font-size:43px}
+ .customer-app .card-body{padding:11px}
+ .customer-app .card-body>strong{font-size:13px}
+}
+@media(max-width:360px){.market-welcome-art{display:none}.customer-app .shop-grid{grid-template-columns:1fr}.customer-app .shop-card-photo{height:150px}}
