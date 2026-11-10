@@ -114,3 +114,7 @@ footer{color:#8a95a4}
 .selected-shop-heading{display:flex;align-items:center;gap:14px;margin:18px 0}.selected-shop-heading img,.selected-shop-placeholder{width:76px;height:68px;border-radius:14px;object-fit:cover;background:#f1eadc;display:grid;place-items:center;color:#a8894e;font-weight:900}.selected-shop-heading h2{margin:0 0 5px}.selected-shop-heading p{margin:0}
 @media(max-width:650px){.shop-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.shop-card-photo{height:116px}.shop-card-body{padding:12px}.shop-card-body h3{font-size:14px}.shop-card-body p{font-size:11px}.shop-card-foot{font-size:10px}.selected-shop-heading img,.selected-shop-placeholder{width:64px;height:58px}}
 @media(max-width:360px){.shop-grid{grid-template-columns:1fr}.shop-card-photo{height:150px}}
+
+.gps-checkout{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:16px 0;padding:14px;border:1px solid #dbe5ed;border-radius:16px;background:#f4f8fb}
+.gps-checkout strong{color:#173b62}.gps-checkout p{margin:5px 0 0}.gps-checkout button{flex-shrink:0}
+@media(max-width:480px){.gps-checkout{align-items:stretch;flex-direction:column}.gps-checkout button{width:100%}}
