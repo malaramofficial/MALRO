@@ -20,7 +20,7 @@ data class CustomerOrder(
 )
 
 object CustomerBackend {
-    private suspend fun request(context: Context, method: String, path: String, body: JSONObject? = null): String =
+    private suspend fun request(context: Context, method: String, path: String, body: JSONObject? = null, prefer: String? = null): String =
         withContext(Dispatchers.IO) {
             val token = MalroPhoneAuth.currentAccessToken(context)
             val connection = URL(BuildConfig.SUPABASE_URL + path).openConnection() as HttpURLConnection
@@ -31,6 +31,7 @@ object CustomerBackend {
                 connection.setRequestProperty("apikey", BuildConfig.SUPABASE_ANON_KEY)
                 connection.setRequestProperty("Authorization", "Bearer $token")
                 connection.setRequestProperty("Accept", "application/json")
+                if (prefer != null) connection.setRequestProperty("Prefer", prefer)
                 if (body != null) {
                     connection.doOutput = true
                     connection.setRequestProperty("Content-Type", "application/json")
@@ -58,7 +59,7 @@ object CustomerBackend {
             return CustomerProfile(row.getString("id"), row.optString("full_name"), row.optString("phone", phone))
         }
         val insert = JSONObject().put("id", userId).put("phone", phone).put("full_name", "")
-        request(context, "POST", "/rest/v1/profiles", insert)
+        request(context, "POST", "/rest/v1/profiles?on_conflict=id", insert, "resolution=merge-duplicates")
         val created = JSONArray(request(context, "GET", query))
         if (created.length() == 0) throw IllegalStateException("प्रोफाइल तैयार नहीं हो पाई")
         val row = created.getJSONObject(0)
@@ -66,7 +67,7 @@ object CustomerBackend {
     }
 
     suspend fun updateProfile(context: Context, userId: String, name: String): CustomerProfile {
-        request(context, "PATCH", "/rest/v1/profiles?id=eq.$userId", JSONObject().put("full_name", name.trim()))
+        request(context, "POST", "/rest/v1/profiles?on_conflict=id", JSONObject().put("id", userId).put("full_name", name.trim()), "resolution=merge-duplicates")
         val rows = JSONArray(request(context, "GET", "/rest/v1/profiles?id=eq.$userId&select=id,full_name,phone"))
         if (rows.length() == 0) throw IllegalStateException("प्रोफाइल अपडेट नहीं हुई")
         val row = rows.getJSONObject(0)
