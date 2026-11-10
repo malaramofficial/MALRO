@@ -1,23 +1,29 @@
 # MALRO Customer App
 
-Android application for customers in Barmer.
+Native Android customer marketplace app for Barmer, built with Kotlin and Jetpack Compose.
 
-## MVP screens
-1. Splash, language selection and onboarding
-2. Phone sign-in / account
-3. Home with local categories, search and serviceability
-4. Product list, filters and product details
-5. Cart and address selection
-6. Checkout and payment hand-off
-7. Order tracking and order history
-8. Profile, help and support
+## Customer flows
+- Secure Supabase phone OTP sign-in and encrypted local session storage
+- Customer profile read/create/update
+- Live approved-shop product catalogue, search and category filtering
+- Persistent local cart, limited to one shop per checkout
+- Delivery address capture and cash-on-delivery checkout
+- Server-authoritative product price and stock validation
+- Customer order history and order status display
+- Logout and session refresh
 
-## Rules
-- Show products only for serviceable localities.
-- Confirm stock and price on the server at checkout.
-- Never mark an order paid based only on a client response.
-- Ask for location permission only when the user chooses location-based address or tracking.
-- Provide clear empty, loading, offline and error states.
+## Backend
+- Shared MALRO Supabase project
+- Products are visible only when active and attached to an approved shop.
+- Checkout uses public.place_customer_order; the server recalculates prices, locks stock rows, decrements stock, writes order/item snapshots and creates the initial order event in one transaction.
+- Payment status remains pending for COD. The app never claims online payment is complete.
+- Customer order and item/event visibility is protected by RLS.
 
-## Implementation
-Kotlin + Jetpack Compose. Shared UI and domain contracts are coordinated through `main`.
+## Current operational dependencies
+- Seller/Admin apps must approve shops and publish real products before the customer catalogue can show inventory.
+- Delivery fee is currently ₹0 because no fee/radius configuration exists yet.
+- Online payment, delivery live tracking, cancellation/refund workflow and configured support contact are not enabled yet.
+- Current Android CI produces a debug APK. A signed release build requires a release keystore and protected CI secrets.
+
+## Build
+GitHub Actions workflow: .github/workflows/android-build.yml
