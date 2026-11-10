@@ -3,6 +3,9 @@ on:
   push:
     branches: ["app/customer"]
   workflow_dispatch:
+concurrency:
+  group: malro-customer-build
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
