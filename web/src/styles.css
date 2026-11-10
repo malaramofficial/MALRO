@@ -101,3 +101,14 @@ footer{color:#8a95a4}
 }
 @media(max-width:360px){.product-grid,.shop-grid{grid-template-columns:1fr}.metric-grid{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+/* Shop photography and fast catalogue picker */
+.shop-photo-editor{display:grid;grid-template-columns:140px 1fr;gap:16px;align-items:center;margin:18px 0;padding:14px;border:1px solid #e7eaf0;border-radius:18px;background:#fbfcfd}
+.shop-photo-editor img,.shop-photo-placeholder{width:140px;height:110px;object-fit:cover;border-radius:14px;background:linear-gradient(140deg,#e9edf2,#f6eddd);display:grid;place-items:center;color:#7b8796;font-size:12px;text-align:center}
+.upload-label{display:grid;gap:8px;cursor:pointer}.upload-label input{padding:9px;background:#fff}.upload-label small{color:#7d8998;font-weight:500}
+.catalog-picker{padding:17px;border:1px solid #e7eaf0;border-radius:18px;background:#fbfcfe;margin:18px 0}
+.catalog-picker-head{display:flex;justify-content:space-between;align-items:center;gap:10px}.catalog-picker-head h3{margin:5px 0}.catalog-items{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;max-height:290px;overflow:auto;padding:2px 4px 4px 0}
+.catalog-item{display:flex;justify-content:space-between;align-items:center;gap:8px;text-align:left;background:#fff;color:#33465c;border:1px solid #e2e7ee;box-shadow:none;padding:11px 12px;border-radius:12px;font-size:13px}
+.catalog-item small{color:#8b6a31;white-space:nowrap}.catalog-item.selected{background:#f8f1e2;border-color:#c9a45f;color:#172b44}
+.catalog-selected{margin:12px 0 0;padding:11px 13px;border-radius:11px;background:#edf5f0;color:#286448;font-size:13px;font-weight:700}
+@media(max-width:520px){.shop-photo-editor{grid-template-columns:1fr}.shop-photo-editor img,.shop-photo-placeholder{width:100%;height:150px}.catalog-items{grid-template-columns:1fr;max-height:260px}.catalog-picker{padding:13px}.catalog-picker-head{align-items:flex-start}}
