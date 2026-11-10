@@ -158,6 +158,8 @@
         <div style="grid-column:1/-1"><div class="detail-label">दुकान का विवरण</div><div class="detail-value">${esc(a.description||"—")}</div></div>
         <div><div class="detail-label">आवेदन की तारीख</div><div class="detail-value">${new Date(a.submitted_at).toLocaleString("hi-IN")}</div></div>
         <div><div class="detail-label">स्थिति</div><div class="detail-value">${esc(a.status)}</div></div>
+        <div><div class="detail-label">Seller अकाउंट</div><div class="detail-value">${a.setup_completed_at?"पासवर्ड सेट • अकाउंट तैयार":a.status==="approved"?"पासवर्ड सेटअप लंबित":"अभी स्वीकृति लंबित"}</div></div>
+        ${a.seller_code?'<div><div class="detail-label">Seller ID</div><div class="detail-value">'+esc(a.seller_code)+'</div></div>':''}
       </div>
       <div class="notice">मोबाइल नंबर केवल संपर्क के लिए वैकल्पिक है; इस पंजीकरण में OTP या मोबाइल Login नहीं है। आवेदन स्वीकृत होने पर Seller ID जारी होगी और विक्रेता अपना पासवर्ड स्वयं बनाएगा।</div>
       <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px"><button class="ghost" id="closeModal">बंद करें</button>${a.status==="pending"?'<button class="danger" id="reject">अस्वीकृत करें</button><button class="primary" id="approve">स्वीकृत करें</button>':""}</div>
