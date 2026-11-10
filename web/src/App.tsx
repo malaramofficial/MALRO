@@ -35,12 +35,15 @@ export default function App() {
   const refresh = useCallback(async (userId?: string) => {
     if (!userId) return
     if (role === 'customer') {
-      const [p, o] = await Promise.all([
+      const [s, p, o] = await Promise.all([
+        supabase.from('shops').select('id,name,description,phone,address,locality,status').eq('status', 'approved').order('name', { ascending: true }),
         supabase.from('products').select('id,shop_id,name,description,category,price_paise,stock_quantity,image_path').eq('status', 'active').gt('stock_quantity', 0).order('created_at', { ascending: false }),
         supabase.from('orders').select('id,status,total_paise,created_at,delivery_address,shop_id').eq('customer_id', userId).order('created_at', { ascending: false }),
       ])
+      if (s.error) throw s.error
       if (p.error) throw p.error
       if (o.error) throw o.error
+      setShops(s.data || [])
       setProducts(p.data || [])
       setOrders(o.data || [])
     } else if (role === 'seller') {
@@ -180,7 +183,7 @@ export default function App() {
     <header className="topbar"><div><div className="wordmark">MALRO</div><div className="muted small">{meta.subtitle}</div></div><div className="user-pill">{profile?.full_name || session.user.phone || 'लॉगिन'}<button className="text-button" onClick={signOut}>बाहर</button></div></header>
     <main className="content"><div className="page-heading"><div><p className="eyebrow">{role.toUpperCase()} WORKSPACE</p><h1>{meta.tabs[tab]}</h1></div><span className="live-dot">LIVE DATA</span></div>
     {notice && <div className="notice banner">{notice}<button className="text-button" onClick={() => setNotice('')}>×</button></div>}
-    {role === 'customer' && tab === 0 && <><div className="hero"><div><p className="eyebrow">LOCAL MARKETPLACE</p><h2>बाड़मेर का बाज़ार,<br/>अब आपकी स्क्रीन पर</h2><p>स्वीकृत दुकानों के उपलब्ध उत्पाद</p></div><div className="hero-mark">M</div></div><div className="product-grid">{products.map(p => <article className="product-card" key={p.id}><div className="product-image">M</div><div className="card-body"><span className="tag">{p.category}</span><h3>{p.name}</h3><p className="muted">{p.description || 'स्थानीय उत्पाद'}</p><div className="card-foot"><strong>{money(p.price_paise)}</strong><button onClick={() => addToCart(p.id)}>कार्ट में जोड़ें</button></div><small>स्टॉक: {p.stock_quantity}</small></div></article>)}</div>{!products.length && <Empty text="अभी कोई उपलब्ध उत्पाद नहीं है। Seller ऐप से स्वीकृत दुकान में उत्पाद प्रकाशित होने पर यहाँ दिखेंगे।" />}</>}
+    {role === 'customer' && tab === 0 && <><div className="hero"><div><p className="eyebrow">LOCAL MARKETPLACE</p><h2>बाड़मेर का बाज़ार,<br/>अब आपकी स्क्रीन पर</h2><p>स्वीकृत दुकानों के उपलब्ध उत्पाद</p></div><div className="hero-mark">M</div></div><section className="panel"><h2>उपलब्ध दुकानें</h2><div className="shop-grid">{shops.map(shop => <article className="list-row" key={shop.id}><div><strong>{shop.name}</strong><p className="muted">{shop.locality} • {shop.address}</p></div></article>)}</div>{!shops.length && <Empty text="अभी कोई स्वीकृत दुकान उपलब्ध नहीं है।" />}</section><h2>उपलब्ध उत्पाद</h2><div className="product-grid">{products.map(p => <article className="product-card" key={p.id}><div className="product-image">M</div><div className="card-body"><span className="tag">{p.category}</span><p className="muted small">{shops.find(s => s.id === p.shop_id)?.name || 'स्थानीय दुकान'}</p><h3>{p.name}</h3><p className="muted">{p.description || 'स्थानीय उत्पाद'}</p><div className="card-foot"><strong>{money(p.price_paise)}</strong><button onClick={() => addToCart(p.id)}>कार्ट में जोड़ें</button></div><small>स्टॉक: {p.stock_quantity}</small></div></article>)}</div>{!products.length && <Empty text="अभी कोई उपलब्ध उत्पाद नहीं है। Seller ऐप से स्वीकृत दुकान में उत्पाद प्रकाशित होने पर यहाँ दिखेंगे।" />}</>}
     {role === 'customer' && tab === 1 && <><section className="panel"><h2>आपका कार्ट</h2>{cartItems.map(p => <div className="list-row" key={p.id}><span>{p.name} × {cart[p.id]}</span><strong>{money(p.price_paise * cart[p.id])}</strong></div>)}<div className="list-row total"><strong>कुल</strong><strong>{money(cartTotal)}</strong></div><h3>डिलीवरी पता</h3><div className="form-grid">{(['name','phone','address_line','locality','pincode'] as const).map(k => <label key={k}>{({name:'नाम',phone:'मोबाइल',address_line:'पूरा पता',locality:'इलाका',pincode:'पिनकोड'} as any)[k]}<input value={address[k]} onChange={e => setAddress(a => ({...a,[k]:e.target.value}))}/></label>)}</div><button disabled={busy || !cartItems.length} onClick={checkout}>COD ऑर्डर करें</button></section></>}
     {role === 'customer' && tab === 2 && <section className="panel"><h2>मेरे ऑर्डर</h2>{orders.map(o => <div className="list-row" key={o.id}><div><strong>#{o.id.slice(0,8)}</strong><p className="muted">{o.status} • {new Date(o.created_at).toLocaleString('hi-IN')}</p></div><div><strong>{money(o.total_paise)}</strong>{o.status === 'placed' && <button className="secondary" onClick={() => cancelOrder(o.id)}>रद्द करें</button>}</div></div>)}{!orders.length && <Empty text="अभी कोई ऑर्डर नहीं है।" />}</section>}
 
