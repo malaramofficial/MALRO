@@ -16,6 +16,9 @@ export default function App() {
   const meta = config[role] || config.customer
   const [session, setSession] = useState<any>(null)
   const [profile, setProfile] = useState<Row | null>(null)
+  const [phone, setPhone] = useState('+91')
+  const [otp, setOtp] = useState('')
+  const [otpSent, setOtpSent] = useState(false)
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState('')
   const [tab, setTab] = useState(0)
@@ -106,6 +109,18 @@ export default function App() {
     setBusy(true); setNotice('')
     try { await fn() } catch (e) { setNotice(errText(e)) } finally { setBusy(false) }
   }
+  const sendOtp = () => run(async () => {
+    const normalized = phone.replace(/[\\s-]/g, '')
+    if (!/^\\+[1-9][0-9]{7,14}$/.test(normalized)) throw new Error('मोबाइल नंबर देश कोड सहित लिखें, जैसे +919876543210')
+    const { error } = await supabase.auth.signInWithOtp({ phone: normalized })
+    if (error) throw error
+    setPhone(normalized); setOtpSent(true); setNotice('OTP भेज दिया गया है।')
+  })
+  const verifyOtp = () => run(async () => {
+    const { data, error } = await supabase.auth.verifyOtp({ phone: phone.replace(/[\\s-]/g, ''), token: otp.trim(), type: 'sms' })
+    if (error) throw error
+    await loadSession(data.session)
+  })
   const signOut = () => run(async () => { await supabase.auth.signOut(); setSession(null); setProfile(null) })
 
   if (!session && role === 'delivery') return <DeliveryGate />
