@@ -105,6 +105,11 @@ object CustomerBackend {
         return request(context, "POST", "/rest/v1/rpc/place_customer_order", body).trim().trim('"')
     }
 
+    suspend fun cancelOrder(context: Context, orderId: String) {
+        request(context, "POST", "/rest/v1/rpc/cancel_customer_order",
+            JSONObject().put("p_order_id", orderId))
+    }
+
     suspend fun loadOrders(context: Context, userId: String): List<CustomerOrder> {
         val path = "/rest/v1/orders?select=id,status,payment_status,total_paise,created_at,delivery_address,shops(name),order_items(product_name_snapshot,quantity),order_events(event_type,note,created_at)" +
             "&customer_id=eq.$userId&order=created_at.desc&limit=50"
