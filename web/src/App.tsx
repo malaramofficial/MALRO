@@ -98,8 +98,11 @@ export default function App() {
     const tables = role === 'customer' ? ['products', 'orders'] : role === 'seller' ? ['shops', 'products', 'orders'] : role === 'delivery' ? ['delivery_jobs', 'orders'] : ['shops', 'orders']
     const channel = supabase.channel('malro-' + role + '-' + session.user.id)
     tables.forEach(table => channel.on('postgres_changes', { event: '*', schema: 'public', table }, () => refresh(session.user.id).catch(e => setNotice(errText(e)))))
-    channel.subscribe()
-    return () => { supabase.removeChannel(channel) }
+    channel.subscribe(status => {
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') setNotice('Live connection कमजोर है; डेटा अपने-आप फिर से जाँचा जाएगा।')
+    })
+    const syncTimer = window.setInterval(() => refresh(session.user.id).catch(e => setNotice(errText(e))), 20000)
+    return () => { window.clearInterval(syncTimer); supabase.removeChannel(channel) }
   }, [session?.user?.id, refresh])
 
   const run = async (fn: () => Promise<void>) => {
