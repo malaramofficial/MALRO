@@ -103,6 +103,25 @@ private object MalroPhoneAuth {
         } finally { connection.disconnect() }
     }
 
+    private suspend fun hasSellerAccess(access: String) = withContext(Dispatchers.IO) {
+        val user = request("/auth/v1/user", bearer = access)
+        val userId = user.optString("id")
+        if (userId.isBlank()) return@withContext false
+        val connection = URL(BuildConfig.SUPABASE_URL +
+            "/rest/v1/profiles?id=eq.$userId&select=account_role").openConnection() as HttpURLConnection
+        try {
+            connection.requestMethod = "GET"
+            connection.connectTimeout = 15000
+            connection.readTimeout = 15000
+            connection.setRequestProperty("apikey", BuildConfig.SUPABASE_ANON_KEY)
+            connection.setRequestProperty("Authorization", "Bearer $access")
+            connection.setRequestProperty("Accept", "application/vnd.pgrst.object+json")
+            if (connection.responseCode !in 200..299) return@withContext false
+            val profile = connection.inputStream.bufferedReader().use { it.readText() }
+            JSONObject(profile).optString("account_role") in setOf("seller_pending", "seller")
+        } finally { connection.disconnect() }
+    }
+
     suspend fun sendOtp(phone: String) = withContext(Dispatchers.IO) {
         request("/auth/v1/otp", JSONObject().put("phone", phone))
     }
@@ -113,13 +132,18 @@ private object MalroPhoneAuth {
         val access = json.optString("access_token")
         val refresh = json.optString("refresh_token")
         if (access.isBlank() || refresh.isBlank()) throw IllegalStateException("लॉगिन सेशन नहीं मिला")
+        if (!hasSellerAccess(access)) throw IllegalStateException("आपका विक्रेता खाता अभी सक्रिय नहीं है। पहले विक्रेता पंजीकरण पूरा करें।")
         EncryptedSessionStore.save(context, MalroSession(access, refresh,
             System.currentTimeMillis() / 1000 + json.optLong("expires_in", 3600L)))
     }
 
     suspend fun restore(context: Context): Boolean = withContext(Dispatchers.IO) {
         val saved = EncryptedSessionStore.read(context) ?: return@withContext false
-        if (saved.expiresAt > System.currentTimeMillis() / 1000 + 60) return@withContext true
+        if (saved.expiresAt > System.currentTimeMillis() / 1000 + 60) {
+            if (hasSellerAccess(saved.accessToken)) return@withContext true
+            EncryptedSessionStore.clear(context)
+            return@withContext false
+        }
         try {
             val json = request("/auth/v1/token?grant_type=refresh_token",
                 JSONObject().put("refresh_token", saved.refreshToken))
@@ -128,6 +152,7 @@ private object MalroPhoneAuth {
             if (access.isBlank() || refresh.isBlank()) throw IllegalStateException("सेशन रिफ्रेश नहीं हुआ")
             EncryptedSessionStore.save(context, MalroSession(access, refresh,
                 System.currentTimeMillis() / 1000 + json.optLong("expires_in", 3600L)))
+            if (!hasSellerAccess(access)) throw IllegalStateException("विक्रेता अधिकार उपलब्ध नहीं हैं")
             true
         } catch (_: Exception) {
             EncryptedSessionStore.clear(context)
