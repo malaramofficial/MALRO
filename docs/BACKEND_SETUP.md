@@ -42,14 +42,14 @@ This is a public read/connectivity integration only. It does **not** yet impleme
 
 ## Authentication setup status
 - The chosen login method is phone number + OTP for customer and seller apps.
-- Supabase Auth phone OTP API flow is documented, but phone sign-in is not yet enabled/verified in the project.
+- Customer/Seller Android OTP client code is committed. Supabase Auth phone sign-in is not yet enabled/verified in the project.
 - A real SMS provider (for example Twilio, Vonage, MessageBird, or another supported provider) and its credentials are required before live SMS delivery works. Provider selection, account creation and any paid usage require the owner's explicit approval.
 - The apps must send phone numbers in E.164 format (India: `+91...`), request the OTP, verify it, and store refreshable sessions securely.
 - Delivery and admin accounts must be provisioned and assigned trusted roles; public self-registration must never grant these roles.
 
 ## Required next steps
 1. Enable phone sign-in and configure an approved SMS provider after cost and credentials are agreed.
-2. Implement OTP request/verification, secure session persistence and logout in customer and seller apps.
+2. Verify the Customer/Seller OTP builds, add logout UI and role-aware seller onboarding/approval screens, then run end-to-end tests after an SMS provider is approved and configured.
 3. Implement seller onboarding UI and connect it to `request-seller-onboarding`; connect the admin review UI to `admin-review-shop`.
 4. Bootstrap the first admin identity through a trusted setup path, then provision delivery identities separately.
 5. Build and deploy authenticated Edge Functions for create-order, seller-order-action, assign-delivery, delivery-action, cancel-order and payment-webhook.
