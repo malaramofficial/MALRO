@@ -145,7 +145,7 @@
       ${rows.length?tableMarkup(rows):'<div class="empty"><div class="empty-icon">⌕</div>कोई आवेदन नहीं मिला।</div>'}</div>`;
   };
   const ordersPage = () => `
-    <div class="page-head"><div><div class="eyebrow">ORDER OPERATIONS</div><h1>ऑर्डर व डिलीवरी</h1><p>ग्राहक के ऑर्डर को सही डिलीवरी पार्टनर से जोड़ें।</p></div><button class="ghost" id="refreshOrders">↻ रिफ्रेश</button></div>
+    <div class="page-head"><div><div class="eyebrow">ORDER OPERATIONS</div><h1>ऑर्डर व डिलीवरी</h1><p>ग्राहक के ऑर्डर को सही डिलीवरी पार्टनर से जोड़ें।</p></div><div style="display:flex;gap:10px;flex-wrap:wrap"><button class="ghost" id="refreshOrders">↻ रिफ्रेश</button><button class="primary" id="addDelivery">+ Delivery Partner जोड़ें</button></div></div>
     <div class="panel"><div class="panel-head"><h2>हाल के ऑर्डर (${state.orders.length})</h2></div>
     ${state.orders.length ? `<div class="table-wrap"><table><thead><tr><th>ऑर्डर</th><th>दुकान</th><th>राशि</th><th>स्थिति</th><th>डिलीवरी पार्टनर</th></tr></thead><tbody>${state.orders.map(o=>`
       <tr><td><strong>#${esc(String(o.id).slice(0,8))}</strong><small>${new Date(o.created_at).toLocaleString("hi-IN")}</small></td>
@@ -153,11 +153,42 @@
       <td><span class="status">${esc(o.status)}</span></td><td>${["packed","assigned"].includes(o.status) ? `<select id="delivery-${esc(o.id)}">${state.deliveryPartners.map(p=>`<option value="${esc(p.id)}">${esc(p.full_name||p.phone||p.id)}</option>`).join("")}</select><button class="action" data-assign="${esc(o.id)}" ${state.deliveryPartners.length?"":"disabled"}>असाइन करें</button>` : "पैक होने की प्रतीक्षा"}</td></tr>`).join("")}</tbody></table></div>` : '<div class="empty">अभी कोई ऑर्डर नहीं है।</div>'}
     ${state.deliveryPartners.length ? "" : '<div class="notice">अभी कोई Delivery भूमिका वाला अकाउंट उपलब्ध नहीं है। पहले Delivery ऐप में अधिकृत अकाउंट तैयार होना चाहिए।</div>'}
     </div>`;
+  const showDeliveryForm = () => {
+    const modal=document.createElement("div");modal.className="modal-backdrop";
+    modal.innerHTML=`<form class="modal" id="deliveryForm">
+      <div class="eyebrow">DELIVERY PARTNER SETUP</div>
+      <h2>नया Delivery Partner</h2>
+      <p class="muted">अकाउंट बनने के बाद यह व्यक्ति Delivery ऐप में अपने मोबाइल नंबर पर OTP लेकर लॉगिन करेगा।</p>
+      <div class="field"><label for="deliveryName">पूरा नाम</label><input id="deliveryName" name="full_name" required minlength="2" maxlength="80" autocomplete="name" placeholder="डिलीवरी पार्टनर का नाम"></div>
+      <div class="field"><label for="deliveryPhone">मोबाइल नंबर</label><input id="deliveryPhone" name="phone" required inputmode="tel" autocomplete="tel" maxlength="16" placeholder="10 अंकों का मोबाइल नंबर"></div>
+      <div class="notice">सिर्फ Admin अकाउंट बना सकता है। मोबाइल नंबर पहले से किसी MALRO अकाउंट में हो तो नया Delivery अकाउंट नहीं बनेगा।</div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px"><button class="ghost" type="button" id="cancelDelivery">रद्द करें</button><button class="primary" type="submit" id="saveDelivery">अकाउंट बनाएँ</button></div>
+    </form>`;
+    document.body.appendChild(modal);
+    modal.querySelector("#cancelDelivery").onclick=()=>modal.remove();
+    modal.onclick=e=>{if(e.target===modal)modal.remove();};
+    modal.querySelector("#deliveryForm").onsubmit=async e=>{
+      e.preventDefault();
+      const button=modal.querySelector("#saveDelivery");
+      const full_name=modal.querySelector("#deliveryName").value.trim();
+      const phone=modal.querySelector("#deliveryPhone").value.trim();
+      button.disabled=true;button.textContent="अकाउंट बन रहा है…";
+      try{
+        const result=await api("/functions/v1/admin-create-delivery-partner","POST",{full_name,phone});
+        await loadOperations();
+        modal.remove();renderPage();
+        toast(result.message||"Delivery Partner अकाउंट तैयार हो गया।");
+      }catch(err){
+        toast(err.message,"error");button.disabled=false;button.textContent="अकाउंट बनाएँ";
+      }
+    };
+  };
   const renderPage = () => {
     const page=root.querySelector("#page");if(!page)return;
     page.innerHTML=state.page==="dashboard"?dashboardPage():state.page==="sellers"?sellersPage():ordersPage();
     const refresh=page.querySelector("#refresh");if(refresh)refresh.onclick=loadApplications;
     const refreshOrders=page.querySelector("#refreshOrders");if(refreshOrders)refreshOrders.onclick=async()=>{try{await loadOperations();renderPage();toast("ऑर्डर सूची अपडेट हो गई।");}catch(e){toast(e.message,"error");}};
+    const addDelivery=page.querySelector("#addDelivery");if(addDelivery)addDelivery.onclick=showDeliveryForm;
     page.querySelectorAll("[data-assign]").forEach(b=>b.onclick=async()=>{
       const orderId=b.dataset.assign;const select=page.querySelector("#delivery-"+CSS.escape(orderId));
       if(!select?.value)return toast("पहले Delivery Partner चुनें।","error");
