@@ -1,7 +1,7 @@
 (() => {
   const cfg = window.MALRO_CONFIG || {};
   const root = document.getElementById("app");
-  const state = { access:"", refresh:"", expires:0, user:null, applications:[], orders:[], deliveryPartners:[], query:"", page:"dashboard", busy:false, credentials:null, selected:null, poller:null };
+  const state = { access:"", refresh:"", expires:0, user:null, applications:[], deliveryApplications:[], deliveryCredential:null, orders:[], deliveryPartners:[], query:"", page:"dashboard", busy:false, credentials:null, selected:null, poller:null };
   const esc = (s="") => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const phoneClean = s => { const p=s.replace(/\s+/g,"").replace(/[^+0-9]/g,""); return /^\d{10}$/.test(p) ? "+91"+p : p; };
   const api = async (path, method="GET", body=null, token=state.access) => {
@@ -51,6 +51,10 @@
     ]);
     state.orders=Array.isArray(orders)?orders:[];
     state.deliveryPartners=Array.isArray(partners)?partners:[];
+  };
+  const loadDeliveryApplications = async () => {
+    const rows=await api("/rest/v1/delivery_applications?select=id,application_code,delivery_code,full_name,phone,locality,address,vehicle_type,status,admin_note,submitted_at,setup_completed_at&order=submitted_at.desc");
+    state.deliveryApplications=Array.isArray(rows)?rows:[];
   };
   const loadApplications = async () => {
     state.busy=true;render();
@@ -106,6 +110,7 @@
           <div><div class="side-label">WORKSPACE</div><nav class="nav">
             ${navButton("dashboard","⌂","डैशबोर्ड")}
             ${navButton("sellers","▤","विक्रेता आवेदन")}
+            ${navButton("delivery","♧","डिलीवरी आवेदन")}
             ${navButton("orders","▣","ऑर्डर व डिलीवरी")}
           </nav></div>
           <div class="side-bottom"><div class="admin-user">लॉगिन: ${esc(state.user?.phone||state.user?.email||"Admin")}</div><button class="nav" id="logout" style="margin-top:12px;width:100%;border:0;background:transparent;color:#e3c37b;text-align:left;padding:10px">↪ लॉगआउट</button></div>
@@ -145,14 +150,72 @@
       ${rows.length?tableMarkup(rows):'<div class="empty"><div class="empty-icon">⌕</div>कोई आवेदन नहीं मिला।</div>'}</div>`;
   };
   const ordersPage = () => `
-    <div class="page-head"><div><div class="eyebrow">ORDER OPERATIONS</div><h1>ऑर्डर व डिलीवरी</h1><p>ग्राहक के ऑर्डर को सही डिलीवरी पार्टनर से जोड़ें।</p></div><div style="display:flex;gap:10px;flex-wrap:wrap"><button class="ghost" id="refreshOrders">↻ रिफ्रेश</button><button class="primary" id="addDelivery">+ Delivery Partner जोड़ें</button></div></div>
+    <div class="page-head"><div><div class="eyebrow">ORDER OPERATIONS</div><h1>ऑर्डर व डिलीवरी</h1><p>स्वीकृत Delivery Partner को ग्राहक के ऑर्डर असाइन करें।</p></div><button class="ghost" id="refreshOrders">↻ रिफ्रेश</button></div>
     <div class="panel"><div class="panel-head"><h2>हाल के ऑर्डर (${state.orders.length})</h2></div>
     ${state.orders.length ? `<div class="table-wrap"><table><thead><tr><th>ऑर्डर</th><th>दुकान</th><th>राशि</th><th>स्थिति</th><th>डिलीवरी पार्टनर</th></tr></thead><tbody>${state.orders.map(o=>`
       <tr><td><strong>#${esc(String(o.id).slice(0,8))}</strong><small>${new Date(o.created_at).toLocaleString("hi-IN")}</small></td>
       <td>${esc(o.shops?.name||"दुकान")}</td><td>₹${(Number(o.total_paise||0)/100).toFixed(2)}</td>
       <td><span class="status">${esc(o.status)}</span></td><td>${["packed","assigned"].includes(o.status) ? `<select id="delivery-${esc(o.id)}">${state.deliveryPartners.map(p=>`<option value="${esc(p.id)}">${esc(p.full_name||p.phone||p.id)}</option>`).join("")}</select><button class="action" data-assign="${esc(o.id)}" ${state.deliveryPartners.length?"":"disabled"}>असाइन करें</button>` : "पैक होने की प्रतीक्षा"}</td></tr>`).join("")}</tbody></table></div>` : '<div class="empty">अभी कोई ऑर्डर नहीं है।</div>'}
-    ${state.deliveryPartners.length ? "" : '<div class="notice">अभी कोई Delivery भूमिका वाला अकाउंट उपलब्ध नहीं है। पहले Delivery ऐप में अधिकृत अकाउंट तैयार होना चाहिए।</div>'}
+    ${state.deliveryPartners.length ? "" : '<div class="notice">अभी कोई स्वीकृत Delivery Partner अकाउंट नहीं है। पहले डिलीवरी आवेदन स्वीकृत करें।</div>'}
     </div>`;
+  const deliveryApplicationsPage = () => {
+    const q=state.query.toLowerCase();
+    const rows=state.deliveryApplications.filter(a=>[a.full_name,a.phone,a.locality,a.application_code,a.delivery_code].some(v=>(v||"").toLowerCase().includes(q)));
+    return `
+      <div class="page-head"><div><div class="eyebrow">DELIVERY PARTNER MANAGEMENT</div><h1>डिलीवरी आवेदन</h1><p>विवरण जाँचें और योग्य Delivery Partner को स्वीकृति दें।</p></div><button class="ghost" id="refreshDelivery">↻ रिफ्रेश</button></div>
+      <div class="panel"><div class="panel-head"><h2>सभी आवेदन (${rows.length})</h2><input class="search" id="deliverySearch" placeholder="नाम, मोबाइल, क्षेत्र या ID खोजें" value="${esc(state.query)}"/></div>
+      ${rows.length?'<div class="table-wrap"><table><thead><tr><th>नाम / क्षेत्र</th><th>आवेदन ID</th><th>मोबाइल</th><th>स्थिति</th><th>कार्यवाही</th></tr></thead><tbody>'+rows.map(a=>`<tr><td><strong>${esc(a.full_name)}</strong><small>${esc(a.locality)}</small></td><td>${esc(a.application_code)}${a.delivery_code?'<small>Delivery ID: '+esc(a.delivery_code)+'</small>':''}</td><td>${esc(a.phone||"—")}</td><td><span class="status ${esc(a.status)}">${a.status==="pending"?"लंबित":a.status==="approved"?"स्वीकृत":"अस्वीकृत"}</span></td><td><button class="action" data-delivery-open="${esc(a.id)}">विवरण देखें</button></td></tr>`).join("")+'</tbody></table></div>':'<div class="empty">अभी कोई Delivery आवेदन नहीं है।</div>'}
+      </div>`;
+  };
+  const showDeliveryApplication = id => {
+    const a=state.deliveryApplications.find(x=>x.id===id);if(!a)return;
+    const modal=document.createElement("div");modal.className="modal-backdrop";
+    modal.innerHTML=`<div class="modal"><div class="eyebrow">DELIVERY APPLICATION</div><h2>${esc(a.full_name)}</h2><p class="muted">आवेदन ID: <strong>${esc(a.application_code)}</strong></p>
+      <div class="details">
+        <div><div class="detail-label">मोबाइल</div><div class="detail-value">${esc(a.phone||"नहीं दिया गया")}</div></div>
+        <div><div class="detail-label">क्षेत्र</div><div class="detail-value">${esc(a.locality)}</div></div>
+        <div><div class="detail-label">वाहन</div><div class="detail-value">${esc(a.vehicle_type||"नहीं बताया")}</div></div>
+        <div><div class="detail-label">आवेदन तारीख</div><div class="detail-value">${new Date(a.submitted_at).toLocaleString("hi-IN")}</div></div>
+        <div style="grid-column:1/-1"><div class="detail-label">पूरा पता</div><div class="detail-value">${esc(a.address)}</div></div>
+        <div><div class="detail-label">अकाउंट स्थिति</div><div class="detail-value">${a.setup_completed_at?"पासवर्ड सेट • तैयार":a.status==="approved"?"पासवर्ड सेटअप लंबित":"स्वीकृति लंबित"}</div></div>
+        ${a.delivery_code?'<div><div class="detail-label">Delivery ID</div><div class="detail-value">'+esc(a.delivery_code)+'</div></div>':''}
+      </div>
+      <div class="notice">स्वीकृति के बाद Delivery ID जारी होगी। आवेदक अपने आवेदन ID और सुरक्षा कोड से पासवर्ड बनाएगा। OTP या मोबाइल Login नहीं होगा।</div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px"><button class="ghost" id="closeDelivery">बंद करें</button>${a.status==="pending"?'<button class="danger" id="rejectDelivery">अस्वीकृत करें</button><button class="primary" id="approveDelivery">स्वीकृत करें</button>':''}</div>
+    </div>`;
+    document.body.appendChild(modal);
+    modal.querySelector("#closeDelivery").onclick=()=>modal.remove();
+    modal.onclick=e=>{if(e.target===modal)modal.remove();};
+    const approve=modal.querySelector("#approveDelivery");if(approve)approve.onclick=()=>reviewDelivery(a,"approved",approve,modal);
+    const reject=modal.querySelector("#rejectDelivery");if(reject)reject.onclick=()=>reviewDelivery(a,"rejected",reject,modal);
+  };
+  const reviewDelivery = async (a,decision,button,modal) => {
+    const note=decision==="rejected"?prompt("अस्वीकृति का कारण (वैकल्पिक):"):null;
+    if(decision==="rejected"&&note===null)return;
+    if(!confirm(decision==="approved"?"क्या आप इस Delivery आवेदन को स्वीकृत कर Delivery ID जारी करना चाहते हैं?":"क्या आप यह Delivery आवेदन अस्वीकृत करना चाहते हैं?"))return;
+    button.disabled=true;button.textContent=decision==="approved"?"स्वीकृति हो रही है…":"अस्वीकृत कर रहे हैं…";
+    try{
+      const result=await api("/functions/v1/admin-approve-delivery","POST",{application_id:a.id,decision,admin_note:note});
+      state.deliveryApplications=state.deliveryApplications.map(x=>x.id===a.id?{...x,status:decision,delivery_code:result.delivery_code||null,admin_note:note}:x);
+      modal.remove();renderPage();
+      if(decision==="approved"){
+        state.deliveryCredential={id:result.delivery_code,code:result.application_code};
+        showDeliveryCredentials();
+      }else toast("आवेदन अस्वीकृत कर दिया गया।");
+    }catch(e){toast(e.message,"error");button.disabled=false;button.textContent=decision==="approved"?"स्वीकृत करें":"अस्वीकृत करें";}
+  };
+  const showDeliveryCredentials = () => {
+    const d=state.deliveryCredential;if(!d)return;
+    const modal=document.createElement("div");modal.className="modal-backdrop";
+    modal.innerHTML=`<div class="modal"><div class="eyebrow">DELIVERY ID ISSUED</div><h2>आवेदन स्वीकृत ✓</h2><p class="muted">आवेदक Delivery ऐप में आवेदन ID और सुरक्षा कोड से अपना पासवर्ड बनाएगा।</p>
+      <div class="credential"><div class="detail-label">Delivery ID</div><div class="credential-row"><span id="deliveryId">${esc(d.id)}</span><button class="copy" data-copy="deliveryId">कॉपी</button></div></div>
+      <div class="credential"><div class="detail-label">आवेदन ID</div><div class="credential-row"><span id="deliveryApplicationCode">${esc(d.code)}</span><button class="copy" data-copy="deliveryApplicationCode">कॉपी</button></div></div>
+      <div class="notice">Admin पासवर्ड नहीं बनाता। आवेदक अपने पास सुरक्षित रखे सुरक्षा कोड से अकाउंट सेटअप करेगा।</div>
+      <button class="primary full" id="doneDelivery" style="margin-top:16px">समझ गया</button></div>`;
+    document.body.appendChild(modal);
+    modal.querySelectorAll("[data-copy]").forEach(b=>b.onclick=async()=>{const v=modal.querySelector("#"+b.dataset.copy).textContent;try{await navigator.clipboard.writeText(v);b.textContent="कॉपी हो गया";}catch{toast("कॉपी नहीं हुआ","error");}});
+    modal.querySelector("#doneDelivery").onclick=()=>{modal.remove();state.deliveryCredential=null;};
+  };
   const showDeliveryForm = () => {
     const modal=document.createElement("div");modal.className="modal-backdrop";
     modal.innerHTML=`<form class="modal" id="deliveryForm">
@@ -185,10 +248,12 @@
   };
   const renderPage = () => {
     const page=root.querySelector("#page");if(!page)return;
-    page.innerHTML=state.page==="dashboard"?dashboardPage():state.page==="sellers"?sellersPage():ordersPage();
+    page.innerHTML=state.page==="dashboard"?dashboardPage():state.page==="sellers"?sellersPage():state.page==="delivery"?deliveryApplicationsPage():ordersPage();
     const refresh=page.querySelector("#refresh");if(refresh)refresh.onclick=loadApplications;
     const refreshOrders=page.querySelector("#refreshOrders");if(refreshOrders)refreshOrders.onclick=async()=>{try{await loadOperations();renderPage();toast("ऑर्डर सूची अपडेट हो गई।");}catch(e){toast(e.message,"error");}};
-    const addDelivery=page.querySelector("#addDelivery");if(addDelivery)addDelivery.onclick=showDeliveryForm;
+    const refreshDelivery=page.querySelector("#refreshDelivery");if(refreshDelivery)refreshDelivery.onclick=async()=>{try{await loadDeliveryApplications();renderPage();toast("डिलीवरी आवेदन अपडेट हो गए।");}catch(e){toast(e.message,"error");}};
+    const deliverySearch=page.querySelector("#deliverySearch");if(deliverySearch)deliverySearch.oninput=()=>{state.query=deliverySearch.value;const pos=deliverySearch.selectionStart;renderPage();const n=page.querySelector("#deliverySearch");n.focus();n.setSelectionRange(pos,pos);};
+    page.querySelectorAll("[data-delivery-open]").forEach(b=>b.onclick=()=>showDeliveryApplication(b.dataset.deliveryOpen));
     page.querySelectorAll("[data-assign]").forEach(b=>b.onclick=async()=>{
       const orderId=b.dataset.assign;const select=page.querySelector("#delivery-"+CSS.escape(orderId));
       if(!select?.value)return toast("पहले Delivery Partner चुनें।","error");
@@ -263,7 +328,7 @@
   };
   const logout = async () => {if(state.poller)clearInterval(state.poller);state.poller=null;try{await api("/auth/v1/logout","POST",{});}catch{}clearSession();loginView();};
   const dashboard = async () => {
-    await checkAdmin();await Promise.all([loadApplications(),loadOperations()]);state.page="dashboard";render();
+    await checkAdmin();await Promise.all([loadApplications(),loadDeliveryApplications(),loadOperations()]);state.page="dashboard";render();
     if(state.poller)clearInterval(state.poller);
     state.poller=setInterval(async()=>{if(!state.user)return;try{await loadOperations();if(state.page==="orders")renderPage();}catch(e){toast(e.message,"error");}},15000);
   };
