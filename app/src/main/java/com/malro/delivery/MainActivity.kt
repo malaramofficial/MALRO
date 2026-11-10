@@ -19,7 +19,7 @@ private val Gold=Color(0xFFD8B56D)
 private val Paper=Color(0xFFF4F6F9)
 
 class MainActivity:ComponentActivity(){
- override fun onCreate(savedInstanceState:Bundle?){super.onCreate(savedInstanceState);setContent{MalroApp()}}
+ override fun onCreate(savedInstanceState:Bundle?){super.onCreate(savedInstanceState);setContent{MalroAuthGate { MalroApp() }}}
 }
 @Composable private fun MalroApp(){
  var tab by remember{mutableIntStateOf(0)}
@@ -48,17 +48,12 @@ class MainActivity:ComponentActivity(){
   Text("डेमो डिलीवरी जॉब",fontWeight=FontWeight.Bold,color=Ink)
   listOf("ऑर्डर #204 • मीठी बेरी रोड","ऑर्डर #205 • मुख्य बाज़ार").forEach { job -> Card(colors=CardDefaults.cardColors(containerColor=Color.White)){Column(Modifier.padding(14.dp)){Text(job,color=Ink,fontWeight=FontWeight.Bold);Button(onClick={completed++},enabled=online){Text("डिलीवरी पूरी करें")}}} }
   Text("इस डिवाइस पर डेमो में पूरी की गई: $completed",color=Ink)
-  Text("GPS, OTP और जॉब असाइनमेंट वास्तविक बैकएंड जुड़ने के बाद ही काम करेंगे।",fontSize=12.sp,color=Color.Gray)
+  Text("GPS और जॉब असाइनमेंट वास्तविक बैकएंड जुड़ने के बाद काम करेंगे।",fontSize=12.sp,color=Color.Gray)
  }}
-     1->{Column(Modifier.fillMaxSize().padding(22.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){Text("डिलीवरी",fontSize=25.sp,fontWeight=FontWeight.Bold,color=Ink);Text("इस मॉड्यूल का लाइव डेटा बैकएंड कनेक्शन के बाद दिखेगा।",color=Color.Gray)}}
-     else->{Column(Modifier.fillMaxSize().padding(22.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){Text("कमाई",fontSize=25.sp,fontWeight=FontWeight.Bold,color=Ink);Text("सुरक्षित लॉगिन और सर्वर डेटा अगली स्टेज में जुड़ेगा।",color=Color.Gray)}}
+     1->{Column(Modifier.fillMaxSize().padding(22.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){Text("डिलीवरी",fontSize=25.sp,fontWeight=FontWeight.Bold,color=Ink);Text("लाइव डेटा बैकएंड इंटीग्रेशन के बाद दिखेगा।",color=Color.Gray)}}
+     else->{Column(Modifier.fillMaxSize().padding(22.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){Text("कमाई",fontSize=25.sp,fontWeight=FontWeight.Bold,color=Ink);Text("कमाई का रिकॉर्ड सर्वर से जोड़ा जाएगा।",color=Color.Gray)}}
     }
    }
   }
- }
-}
-@Composable private fun Metric(label:String,value:String,modifier:Modifier=Modifier){
- Card(modifier,colors=CardDefaults.cardColors(containerColor=Color.White),shape=RoundedCornerShape(16.dp)){
-  Column(Modifier.padding(16.dp)){Text(label,color=Color.Gray,fontSize=12.sp);Text(value,color=Ink,fontWeight=FontWeight.Bold,fontSize=25.sp)}
  }
 }
