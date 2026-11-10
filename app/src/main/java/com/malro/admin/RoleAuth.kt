@@ -47,14 +47,17 @@ private object AdminSessionStore {
         val data=JSONObject().put("a",s.access).put("r",s.refresh).put("e",s.expires).toString().toByteArray()
         c.getSharedPreferences(PREFS,0).edit().putString(ENTRY,Base64.encodeToString(cipher.iv+cipher.doFinal(data),Base64.NO_WRAP)).apply()
     }
-    fun read(c:Context):AdminSession?=try{
-        val raw=c.getSharedPreferences(PREFS,0).getString(ENTRY,null)?:return null
-        val packed=Base64.decode(raw,Base64.NO_WRAP);if(packed.size<13)return null
-        val cipher=Cipher.getInstance("AES/GCM/NoPadding")
-        cipher.init(Cipher.DECRYPT_MODE,key(),GCMParameterSpec(128,packed.copyOfRange(0,12)))
-        val j=JSONObject(String(cipher.doFinal(packed.copyOfRange(12,packed.size))))
-        AdminSession(j.getString("a"),j.getString("r"),j.getLong("e"))
-    }catch(_:Exception){null}
+    fun read(c:Context):AdminSession? {
+        return try {
+            val raw=c.getSharedPreferences(PREFS,0).getString(ENTRY,null) ?: return null
+            val packed=Base64.decode(raw,Base64.NO_WRAP)
+            if(packed.size<13) return null
+            val cipher=Cipher.getInstance("AES/GCM/NoPadding")
+            cipher.init(Cipher.DECRYPT_MODE,key(),GCMParameterSpec(128,packed.copyOfRange(0,12)))
+            val j=JSONObject(String(cipher.doFinal(packed.copyOfRange(12,packed.size))))
+            AdminSession(j.getString("a"),j.getString("r"),j.getLong("e"))
+        } catch(_:Exception) { null }
+    }
     fun clear(c:Context){c.getSharedPreferences(PREFS,0).edit().remove(ENTRY).apply()}
 }
 private object RoleAuth {
