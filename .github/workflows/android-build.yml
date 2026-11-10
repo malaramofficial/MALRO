@@ -1,7 +1,5 @@
-name: Android APK Build
+name: Android APK Build (Manual Fallback)
 on:
-  push:
-    branches: ["app/customer"]
   workflow_dispatch:
 concurrency:
   group: malro-customer-build
@@ -21,8 +19,9 @@ jobs:
         with:
           gradle-version: "8.9"
       - name: Build debug APK
-        run: gradle --no-daemon assembleDebug
+        run: gradle --no-daemon :app:assembleDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: malro-customer-debug-apk
+          name: malro-customer-debug-apk-manual
           path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
