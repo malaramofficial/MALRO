@@ -3,7 +3,7 @@
   const root = document.getElementById("app");
   const state = { access:"", refresh:"", expires:0, user:null, applications:[], query:"", page:"dashboard", busy:false, credentials:null, selected:null };
   const esc = (s="") => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-  const phoneClean = s => s.replace(/\s+/g,"").replace(/[^+0-9]/g,"");
+  const phoneClean = s => { const p=s.replace(/\\s+/g,"").replace(/[^+0-9]/g,""); return /^\\d{10}$/.test(p) ? "+91"+p : p; };
   const api = async (path, method="GET", body=null, token=state.access) => {
     const headers = {"apikey":cfg.anonKey,"Accept":"application/json"};
     if(token) headers.Authorization = "Bearer " + token;
