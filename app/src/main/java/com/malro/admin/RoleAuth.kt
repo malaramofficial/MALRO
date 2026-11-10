@@ -109,7 +109,7 @@ private object RoleAuth {
         AdminSessionStore.clear(c)
     }
 }
-@Composable fun MalroAuthGate(content:@Composable()->Unit){
+@Composable fun MalroAuthGate(content: @Composable () -> Unit){
     val c=LocalContext.current;var ok by remember{mutableStateOf<Boolean?>(null)}
     LaunchedEffect(Unit){ok=RoleAuth.restore(c)}
     when(ok){
