@@ -1,7 +1,7 @@
 (() => {
   const cfg = window.MALRO_CONFIG || {};
   const root = document.getElementById("app");
-  const state = { access:"", refresh:"", expires:0, user:null, applications:[], orders:[], deliveryPartners:[], query:"", page:"dashboard", busy:false, credentials:null, selected:null };
+  const state = { access:"", refresh:"", expires:0, user:null, applications:[], orders:[], deliveryPartners:[], query:"", page:"dashboard", busy:false, credentials:null, selected:null, poller:null };
   const esc = (s="") => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const phoneClean = s => { const p=s.replace(/\s+/g,"").replace(/[^+0-9]/g,""); return /^\d{10}$/.test(p) ? "+91"+p : p; };
   const api = async (path, method="GET", body=null, token=state.access) => {
@@ -230,8 +230,12 @@
     modal.querySelectorAll("[data-copy]").forEach(b=>b.onclick=async()=>{const v=modal.querySelector("#"+b.dataset.copy).textContent;try{await navigator.clipboard.writeText(v);b.textContent="कॉपी हो गया";}catch{toast("कॉपी नहीं हुआ; टेक्स्ट चुनकर कॉपी करें","error");}});
     modal.querySelector("#done").onclick=()=>{modal.remove();state.credentials=null;};
   };
-  const logout = async () => {try{await api("/auth/v1/logout","POST",{});}catch{}clearSession();loginView();};
-  const dashboard = async () => {await checkAdmin();await Promise.all([loadApplications(),loadOperations()]);state.page="dashboard";render();};
+  const logout = async () => {if(state.poller)clearInterval(state.poller);state.poller=null;try{await api("/auth/v1/logout","POST",{});}catch{}clearSession();loginView();};
+  const dashboard = async () => {
+    await checkAdmin();await Promise.all([loadApplications(),loadOperations()]);state.page="dashboard";render();
+    if(state.poller)clearInterval(state.poller);
+    state.poller=setInterval(async()=>{if(!state.user)return;try{await loadOperations();if(state.page==="orders")renderPage();}catch(e){toast(e.message,"error");}},15000);
+  };
   const start = async () => {
     if(!cfg.supabaseUrl||!cfg.anonKey){root.innerHTML='<div class="boot"><h2>सेटअप अधूरा है</h2><p>Render Environment Variables जाँचें।</p></div>';return;}
     if(await restore()){await dashboard();}else loginView();
