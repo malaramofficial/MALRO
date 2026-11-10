@@ -5,6 +5,8 @@ import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -13,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
@@ -56,25 +59,23 @@ private object EncryptedSessionStore {
             .putString(ENTRY, Base64.encodeToString(packed, Base64.NO_WRAP)).apply()
     }
 
-    fun read(context: Context): MalroSession? {
-        return try {
-            val encoded = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(ENTRY, null)
-                ?: return null
-            val packed = Base64.decode(encoded, Base64.NO_WRAP)
-            if (packed.size < 13) return null
-            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-            cipher.init(Cipher.DECRYPT_MODE, key(), GCMParameterSpec(128, packed.copyOfRange(0, 12)))
-            val json = JSONObject(String(cipher.doFinal(packed.copyOfRange(12, packed.size)), Charsets.UTF_8))
-            MalroSession(json.getString("access"), json.getString("refresh"), json.getLong("expires"))
-        } catch (_: Exception) { null }
-    }
+    fun read(context: Context): MalroSession? = try {
+        val encoded = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(ENTRY, null)
+            ?: return null
+        val packed = Base64.decode(encoded, Base64.NO_WRAP)
+        if (packed.size < 13) return null
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.DECRYPT_MODE, key(), GCMParameterSpec(128, packed.copyOfRange(0, 12)))
+        val json = JSONObject(String(cipher.doFinal(packed.copyOfRange(12, packed.size)), Charsets.UTF_8))
+        MalroSession(json.getString("access"), json.getString("refresh"), json.getLong("expires"))
+    } catch (_: Exception) { null }
 
     fun clear(context: Context) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove(ENTRY).apply()
     }
 }
 
-private object MalroPhoneAuth {
+private object MalroSellerApi {
     private fun request(path: String, body: JSONObject? = null, bearer: String? = null): JSONObject {
         val connection = URL(BuildConfig.SUPABASE_URL + path).openConnection() as HttpURLConnection
         try {
@@ -96,15 +97,52 @@ private object MalroPhoneAuth {
                 val error = try {
                     val json = JSONObject(response)
                     json.optString("msg").ifBlank { json.optString("message") }
+                        .ifBlank { json.optString("error") }
                 } catch (_: Exception) { "" }
-                throw IllegalStateException(error.ifBlank { "सर्वर ने अनुरोध स्वीकार नहीं किया ($code)" })
+                throw IllegalStateException(error.ifBlank { "सर्वर अनुरोध अस्वीकार हुआ ($code)" })
             }
             return if (response.isBlank()) JSONObject() else JSONObject(response)
         } finally { connection.disconnect() }
     }
 
+    suspend fun submitApplication(
+        fullName: String, phone: String, shopName: String,
+        description: String, address: String, locality: String
+    ) = withContext(Dispatchers.IO) {
+        request("/rest/v1/rpc/submit_seller_application", JSONObject()
+            .put("p_full_name", fullName.trim())
+            .put("p_phone", "+91" + phone.filter(Char::isDigit))
+            .put("p_shop_name", shopName.trim())
+            .put("p_description", description.trim())
+            .put("p_address", address.trim())
+            .put("p_locality", locality.trim().ifBlank { "Barmer" }))
+    }
+
+    suspend fun checkApplication(code: String, phone: String) = withContext(Dispatchers.IO) {
+        request("/rest/v1/rpc/get_seller_application_status", JSONObject()
+            .put("p_application_code", code.trim().uppercase())
+            .put("p_phone", "+91" + phone.filter(Char::isDigit)))
+    }
+
+    suspend fun login(context: Context, sellerCode: String, password: String) = withContext(Dispatchers.IO) {
+        val code = sellerCode.trim().uppercase()
+        if (!code.matches(Regex("MLR-[A-F0-9]{10}"))) {
+            throw IllegalArgumentException("सही Seller ID डालें (उदाहरण: MLR-XXXXXXXXXX)")
+        }
+        val email = "seller-${code.lowercase()}@malro.app"
+        val json = request("/auth/v1/token?grant_type=password",
+            JSONObject().put("email", email).put("password", password))
+        val access = json.optString("access_token")
+        val refresh = json.optString("refresh_token")
+        if (access.isBlank() || refresh.isBlank()) throw IllegalStateException("लॉगिन सेशन नहीं मिला")
+        if (!hasSellerAccess(access)) throw IllegalStateException("यह Seller अकाउंट अभी सक्रिय नहीं है")
+        EncryptedSessionStore.save(context, MalroSession(access, refresh,
+            System.currentTimeMillis() / 1000 + json.optLong("expires_in", 3600L)))
+    }
+
     private suspend fun hasSellerAccess(access: String) = withContext(Dispatchers.IO) {
         val user = request("/auth/v1/user", bearer = access)
+        if (user.optJSONObject("app_metadata")?.optString("role") != "seller") return@withContext false
         val userId = user.optString("id")
         if (userId.isBlank()) return@withContext false
         val connection = URL(BuildConfig.SUPABASE_URL +
@@ -118,61 +156,28 @@ private object MalroPhoneAuth {
             connection.setRequestProperty("Accept", "application/vnd.pgrst.object+json")
             if (connection.responseCode !in 200..299) return@withContext false
             val profile = connection.inputStream.bufferedReader().use { it.readText() }
-            JSONObject(profile).optString("account_role") in setOf("seller_pending", "seller")
+            JSONObject(profile).optString("account_role") == "seller"
         } finally { connection.disconnect() }
-    }
-
-    suspend fun sendOtp(phone: String) = withContext(Dispatchers.IO) {
-        request("/auth/v1/otp", JSONObject().put("phone", phone))
-    }
-
-    suspend fun verifyOtp(context: Context, phone: String, otp: String, fullName: String, shopName: String, address: String) = withContext(Dispatchers.IO) {
-        val json = request("/auth/v1/verify", JSONObject()
-            .put("type", "sms").put("phone", phone).put("token", otp))
-        val access = json.optString("access_token")
-        val refresh = json.optString("refresh_token")
-        if (access.isBlank() || refresh.isBlank()) throw IllegalStateException("लॉगिन सेशन नहीं मिला")
-        if (!hasSellerAccess(access)) {
-            request("/rest/v1/rpc/register_seller", JSONObject()
-                .put("p_full_name", fullName.trim())
-                .put("p_shop_name", shopName.trim())
-                .put("p_description", "")
-                .put("p_address", address.trim())
-                .put("p_locality", "Barmer"), access)
-        }
-        EncryptedSessionStore.save(context, MalroSession(access, refresh,
-            System.currentTimeMillis() / 1000 + json.optLong("expires_in", 3600L)))
     }
 
     suspend fun restore(context: Context): Boolean = withContext(Dispatchers.IO) {
         val saved = EncryptedSessionStore.read(context) ?: return@withContext false
-        if (saved.expiresAt > System.currentTimeMillis() / 1000 + 60) {
-            if (hasSellerAccess(saved.accessToken)) return@withContext true
-            EncryptedSessionStore.clear(context)
-            return@withContext false
-        }
         try {
-            val json = request("/auth/v1/token?grant_type=refresh_token",
-                JSONObject().put("refresh_token", saved.refreshToken))
-            val access = json.optString("access_token")
-            val refresh = json.optString("refresh_token")
-            if (access.isBlank() || refresh.isBlank()) throw IllegalStateException("सेशन रिफ्रेश नहीं हुआ")
-            EncryptedSessionStore.save(context, MalroSession(access, refresh,
-                System.currentTimeMillis() / 1000 + json.optLong("expires_in", 3600L)))
-            if (!hasSellerAccess(access)) throw IllegalStateException("विक्रेता अधिकार उपलब्ध नहीं हैं")
+            val current = if (saved.expiresAt > System.currentTimeMillis() / 1000 + 60) saved else {
+                val json = request("/auth/v1/token?grant_type=refresh_token",
+                    JSONObject().put("refresh_token", saved.refreshToken))
+                val access = json.optString("access_token")
+                val refresh = json.optString("refresh_token")
+                if (access.isBlank() || refresh.isBlank()) throw IllegalStateException("सेशन रिफ्रेश नहीं हुआ")
+                MalroSession(access, refresh, System.currentTimeMillis() / 1000 +
+                    json.optLong("expires_in", 3600L)).also { EncryptedSessionStore.save(context, it) }
+            }
+            if (!hasSellerAccess(current.accessToken)) throw IllegalStateException("Seller अनुमति उपलब्ध नहीं है")
             true
         } catch (_: Exception) {
             EncryptedSessionStore.clear(context)
             false
         }
-    }
-
-    suspend fun signOut(context: Context) = withContext(Dispatchers.IO) {
-        val saved = EncryptedSessionStore.read(context)
-        try {
-            if (saved != null) request("/auth/v1/logout", JSONObject(), saved.accessToken)
-        } catch (_: Exception) { }
-        EncryptedSessionStore.clear(context)
     }
 }
 
@@ -180,109 +185,161 @@ private object MalroPhoneAuth {
 fun MalroAuthGate(content: @Composable () -> Unit) {
     val context = LocalContext.current
     var authenticated by remember { mutableStateOf<Boolean?>(null) }
-    LaunchedEffect(Unit) { authenticated = MalroPhoneAuth.restore(context) }
+    LaunchedEffect(Unit) { authenticated = MalroSellerApi.restore(context) }
     when (authenticated) {
         null -> Surface(Modifier.fillMaxSize()) {
             Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center) {
                 CircularProgressIndicator()
                 Spacer(Modifier.height(12.dp))
-                Text("MALRO सुरक्षित सेशन जाँच रहा है…")
+                Text("MALRO सुरक्षित Seller सेशन जाँच रहा है…")
             }
         }
         true -> content()
-        false -> PhoneOtpLogin(onAuthenticated = { authenticated = true })
+        false -> SellerEntryScreen(onAuthenticated = { authenticated = true })
     }
 }
 
 @Composable
-private fun PhoneOtpLogin(onAuthenticated: () -> Unit) {
+private fun SellerEntryScreen(onAuthenticated: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var phoneDigits by remember { mutableStateOf("") }
-    var otp by remember { mutableStateOf("") }
+    var mode by remember { mutableStateOf("register") }
     var fullName by remember { mutableStateOf("") }
+    var phone by remember { mutableStateOf("") }
     var shopName by remember { mutableStateOf("") }
-    var shopAddress by remember { mutableStateOf("") }
-    var otpSent by remember { mutableStateOf(false) }
-    var loading by remember { mutableStateOf(false) }
+    var description by remember { mutableStateOf("") }
+    var address by remember { mutableStateOf("") }
+    var locality by remember { mutableStateOf("Barmer") }
+    var sellerCode by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var statusCode by remember { mutableStateOf("") }
+    var statusPhone by remember { mutableStateOf("") }
+    var result by remember { mutableStateOf<JSONObject?>(null) }
+    var busy by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf("") }
+    var applicationCode by remember { mutableStateOf("") }
 
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-        Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center) {
-            Text("MALRO", fontSize = 14.sp, fontWeight = FontWeight.Bold, letterSpacing = 3.sp)
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(22.dp),
+            verticalArrangement = Arrangement.Center) {
+            Text("MALRO", fontSize = 14.sp, fontWeight = FontWeight.Bold, letterSpacing = 3.sp,
+                color = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.height(8.dp))
-            Text("मोबाइल नंबर से लॉगिन", fontSize = 25.sp, fontWeight = FontWeight.Bold)
-            Text("OTP सत्यापन के बाद अपनी दुकान का पंजीकरण पूरा करें।",
-                style = MaterialTheme.typography.bodyMedium)
-            Spacer(Modifier.height(22.dp))
-            OutlinedTextField(value = phoneDigits,
-                onValueChange = { phoneDigits = it.filter(Char::isDigit).take(10) },
-                modifier = Modifier.fillMaxWidth(), label = { Text("मोबाइल नंबर") },
-                prefix = { Text("+91 ") }, singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                enabled = !otpSent && !loading)
-            if (otpSent) {
-                Spacer(Modifier.height(12.dp))
-                OutlinedTextField(value = fullName, onValueChange = { fullName = it },
-                    modifier = Modifier.fillMaxWidth(), label = { Text("विक्रेता का पूरा नाम") }, singleLine = true,
-                    enabled = !loading)
-                Spacer(Modifier.height(8.dp))
-                OutlinedTextField(value = shopName, onValueChange = { shopName = it },
-                    modifier = Modifier.fillMaxWidth(), label = { Text("दुकान का नाम") }, singleLine = true,
-                    enabled = !loading)
-                Spacer(Modifier.height(8.dp))
-                OutlinedTextField(value = shopAddress, onValueChange = { shopAddress = it },
-                    modifier = Modifier.fillMaxWidth(), label = { Text("दुकान का पूरा पता") }, minLines = 2,
-                    enabled = !loading)
-                Spacer(Modifier.height(12.dp))
-                OutlinedTextField(value = otp,
-                    onValueChange = { otp = it.filter(Char::isDigit).take(6) },
-                    modifier = Modifier.fillMaxWidth(), label = { Text("6 अंकों का OTP") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                    enabled = !loading)
-            }
-            Spacer(Modifier.height(16.dp))
-            Button(onClick = {
-                scope.launch {
-                    loading = true
-                    message = ""
-                    try {
-                        if (!otpSent) {
-                            if (phoneDigits.length != 10 || phoneDigits.first() !in "6789")
-                                throw IllegalArgumentException("सही 10 अंकों का भारतीय मोबाइल नंबर डालें")
-                            MalroPhoneAuth.sendOtp("+91$phoneDigits")
-                            otpSent = true
-                            message = "OTP भेजने का अनुरोध स्वीकार हुआ। SMS जाँचें।"
-                        } else {
-                            if (otp.length != 6) throw IllegalArgumentException("6 अंकों का OTP डालें")
-                            if (fullName.isBlank() || shopName.isBlank() || shopAddress.isBlank())
-                                throw IllegalArgumentException("नाम, दुकान का नाम और दुकान का पता भरें")
-                            MalroPhoneAuth.verifyOtp(context, "+91$phoneDigits", otp, fullName, shopName, shopAddress)
-                            onAuthenticated()
+            Text("विक्रेता पोर्टल", fontSize = 27.sp, fontWeight = FontWeight.Bold)
+            Text("दुकान का पंजीकरण और सुरक्षित Seller Login", style = MaterialTheme.typography.bodyMedium)
+            Spacer(Modifier.height(18.dp))
+            if (applicationCode.isNotBlank()) {
+                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
+                    Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("आवेदन सफलतापूर्वक भेजा गया", fontWeight = FontWeight.Bold)
+                        Text("आपकी आवेदन ID", style = MaterialTheme.typography.labelMedium)
+                        Text(applicationCode, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                        Text("इसे सुरक्षित रखें। Admin की मंजूरी के बाद इसी ID से Login होगा।")
+                        TextButton(onClick = { mode = "status"; statusCode = applicationCode; statusPhone = phone }) {
+                            Text("आवेदन की स्थिति देखें")
                         }
-                    } catch (e: Exception) {
-                        message = e.message ?: "कुछ गलत हुआ। फिर कोशिश करें।"
-                    } finally { loading = false }
+                    }
                 }
-            }, modifier = Modifier.fillMaxWidth(), enabled = !loading) {
-                if (loading) CircularProgressIndicator() else
-                    Text(if (otpSent) "OTP सत्यापित करें" else "OTP भेजें")
             }
-            if (otpSent) {
-                TextButton(onClick = { otpSent = false; otp = ""; message = "" }, enabled = !loading) {
-                    Text("मोबाइल नंबर बदलें")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(selected = mode == "register", onClick = { mode = "register"; message = ""; result = null }, label = { Text("नया पंजीकरण") })
+                FilterChip(selected = mode == "login", onClick = { mode = "login"; message = ""; result = null }, label = { Text("Seller Login") })
+                FilterChip(selected = mode == "status", onClick = { mode = "status"; message = ""; result = null }, label = { Text("स्थिति जाँचें") })
+            }
+            Spacer(Modifier.height(14.dp))
+            when (mode) {
+                "register" -> {
+                    OutlinedTextField(fullName, { fullName = it }, Modifier.fillMaxWidth(), label = { Text("विक्रेता का पूरा नाम") }, singleLine = true)
+                    OutlinedTextField(phone, { phone = it.filter(Char::isDigit).take(10) }, Modifier.fillMaxWidth(),
+                        label = { Text("मोबाइल नंबर") }, prefix = { Text("+91 ") }, singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone))
+                    OutlinedTextField(shopName, { shopName = it }, Modifier.fillMaxWidth(), label = { Text("दुकान का नाम") }, singleLine = true)
+                    OutlinedTextField(description, { description = it }, Modifier.fillMaxWidth(), label = { Text("दुकान का विवरण (वैकल्पिक)") }, minLines = 2)
+                    OutlinedTextField(address, { address = it }, Modifier.fillMaxWidth(), label = { Text("दुकान का पूरा पता") }, minLines = 2)
+                    OutlinedTextField(locality, { locality = it }, Modifier.fillMaxWidth(), label = { Text("क्षेत्र / शहर") }, singleLine = true)
+                    Spacer(Modifier.height(8.dp))
+                    Text("ध्यान दें: आवेदन के समय OTP या Login नहीं होगा। मोबाइल नंबर संपर्क के लिए है; Admin इसकी पुष्टि कर सकता है।", style = MaterialTheme.typography.bodySmall)
+                    Button(onClick = {
+                        scope.launch {
+                            busy = true; message = ""
+                            try {
+                                if (fullName.trim().length < 2 || shopName.trim().length < 2 ||
+                                    address.trim().length < 5 || phone.length != 10 || phone.first() !in "6789") {
+                                    throw IllegalArgumentException("नाम, दुकान, पता और सही 10 अंकों का मोबाइल नंबर भरें")
+                                }
+                                val response = MalroSellerApi.submitApplication(fullName, phone, shopName, description, address, locality)
+                                applicationCode = response.optString("application_code")
+                                if (applicationCode.isBlank()) throw IllegalStateException("आवेदन ID नहीं मिली")
+                                message = "आवेदन Admin को भेज दिया गया है।"
+                            } catch (e: Exception) { message = e.message ?: "आवेदन भेजा नहीं जा सका" }
+                            finally { busy = false }
+                        }
+                    }, Modifier.fillMaxWidth(), enabled = !busy) {
+                        if (busy) CircularProgressIndicator() else Text("Admin को आवेदन भेजें")
+                    }
+                }
+                "login" -> {
+                    OutlinedTextField(sellerCode, { sellerCode = it.uppercase() }, Modifier.fillMaxWidth(),
+                        label = { Text("Seller ID") }, placeholder = { Text("MLR-XXXXXXXXXX") }, singleLine = true)
+                    OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(),
+                        label = { Text("पासवर्ड") }, singleLine = true, visualTransformation = PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password))
+                    Button(onClick = {
+                        scope.launch {
+                            busy = true; message = ""
+                            try {
+                                if (password.length < 8) throw IllegalArgumentException("पासवर्ड सही भरें")
+                                MalroSellerApi.login(context, sellerCode, password)
+                                onAuthenticated()
+                            } catch (e: Exception) { message = e.message ?: "Login विफल" }
+                            finally { busy = false }
+                        }
+                    }, Modifier.fillMaxWidth(), enabled = !busy) {
+                        if (busy) CircularProgressIndicator() else Text("सुरक्षित Login करें")
+                    }
+                }
+                else -> {
+                    OutlinedTextField(statusCode, { statusCode = it.uppercase() }, Modifier.fillMaxWidth(),
+                        label = { Text("आवेदन ID") }, singleLine = true)
+                    OutlinedTextField(statusPhone, { statusPhone = it.filter(Char::isDigit).take(10) }, Modifier.fillMaxWidth(),
+                        label = { Text("आवेदन वाला मोबाइल नंबर") }, prefix = { Text("+91 ") }, singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone))
+                    Button(onClick = {
+                        scope.launch {
+                            busy = true; message = ""; result = null
+                            try {
+                                if (statusPhone.length != 10) throw IllegalArgumentException("10 अंकों का मोबाइल नंबर भरें")
+                                result = MalroSellerApi.checkApplication(statusCode, statusPhone)
+                            } catch (e: Exception) { message = e.message ?: "स्थिति नहीं मिली" }
+                            finally { busy = false }
+                        }
+                    }, Modifier.fillMaxWidth(), enabled = !busy) {
+                        if (busy) CircularProgressIndicator() else Text("स्थिति जाँचें")
+                    }
+                    result?.let { r ->
+                        val status = r.optString("status")
+                        Card(Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text(r.optString("shop_name"), fontWeight = FontWeight.Bold)
+                                Text("स्थिति: " + when (status) {
+                                    "pending" -> "Admin की मंजूरी बाकी है"
+                                    "approved" -> "स्वीकृत — अब Seller Login करें"
+                                    "rejected" -> "आवेदन अस्वीकृत"
+                                    else -> status
+                                })
+                                if (r.optString("admin_note").isNotBlank()) Text("Admin नोट: ${r.optString("admin_note")}")
+                                if (status == "approved") Text("अपनी आवेदन ID को Seller ID के रूप में उपयोग करें।")
+                            }
+                        }
+                    }
                 }
             }
             if (message.isNotBlank()) {
                 Spacer(Modifier.height(10.dp))
-                Text(message, color = MaterialTheme.colorScheme.primary,
-                    style = MaterialTheme.typography.bodySmall)
+                Text(message, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodySmall)
             }
-            Spacer(Modifier.height(18.dp))
-            Text("SMS OTP चालू होने के लिए Supabase में SMS प्रदाता कॉन्फ़िगर होना आवश्यक है।",
-                style = MaterialTheme.typography.bodySmall)
+            Spacer(Modifier.height(20.dp))
         }
     }
 }
