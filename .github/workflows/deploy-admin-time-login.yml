@@ -1,0 +1,30 @@
+name: Deploy MALRO Admin Login Function
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - admin-web
+    paths:
+      - "supabase/functions/admin-time-login/**"
+      - ".github/workflows/deploy-admin-time-login.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_PROJECT_ID: nwjrxnrsmfqufbpjfrya
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Check deployment credentials
+        run: |
+          test -n "$SUPABASE_ACCESS_TOKEN" || (echo "Missing GitHub secret SUPABASE_ACCESS_TOKEN" && exit 1)
+      - name: Deploy Admin time-password login
+        run: supabase functions deploy admin-time-login --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt
