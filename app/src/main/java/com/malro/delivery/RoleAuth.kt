@@ -76,7 +76,22 @@ private object RoleAuth {
     }
     private suspend fun hasRole(access:String)=withContext(Dispatchers.IO){
         val user=request("/auth/v1/user",token=access)
-        user.optJSONObject("app_metadata")?.optString("role")==REQUIRED_delivery
+        val userId=user.optString("id")
+        if(userId.isBlank()) return@withContext false
+        val conn=URL(BuildConfig.SUPABASE_URL+"/rest/v1/profiles?id=eq.$userId&select=account_role")
+            .openConnection() as HttpURLConnection
+        try {
+            conn.requestMethod="GET"
+            conn.connectTimeout=15000
+            conn.readTimeout=15000
+            conn.setRequestProperty("apikey",BuildConfig.SUPABASE_ANON_KEY)
+            conn.setRequestProperty("Authorization","Bearer $access")
+            conn.setRequestProperty("Accept","application/vnd.pgrst.object+json")
+            val code=conn.responseCode
+            if(code !in 200..299) return@withContext false
+            val body=conn.inputStream.bufferedReader().use{it.readText()}
+            JSONObject(body).optString("account_role")==REQUIRED_delivery
+        } finally { conn.disconnect() }
     }
     suspend fun send(phone:String)=withContext(Dispatchers.IO){request("/auth/v1/otp",JSONObject().put("phone",phone))}
     suspend fun verify(c:Context,phone:String,otp:String)=withContext(Dispatchers.IO){
