@@ -43,9 +43,27 @@ This is a public read/connectivity integration only. It does **not** yet impleme
 ## Authentication setup status
 - The chosen login method is phone number + OTP for customer and seller apps.
 - Customer/Seller phone OTP client code is committed. Delivery/Admin role-gated OTP clients are also committed. Supabase Auth phone sign-in is not yet enabled/verified in the project.
-- A real SMS provider (for example Twilio, Vonage, MessageBird, or another supported provider) and its credentials are required before live SMS delivery works. Provider selection, account creation and any paid usage require the owner's explicit approval.
+- TextBee is the selected SMS gateway candidate and a secure Supabase Send SMS Hook function has been added. It is not active until server-side secrets and the Auth Hook are configured. TextBee sends through a paired Android phone/SIM; any TextBee plan limits or carrier SMS charges still apply.
 - The apps must send phone numbers in E.164 format (India: `+91...`), request the OTP, verify it, and store refreshable sessions securely.
 - Delivery and admin accounts must be provisioned and assigned trusted roles; public self-registration must never grant these roles.
+
+## TextBee OTP SMS gateway
+
+- Source: `supabase/functions/send-sms-textbee/index.ts`.
+- The function is designed for the Supabase Auth **Send SMS Hook**. Supabase generates and verifies the OTP; this function only forwards the generated code to TextBee.
+- It verifies the incoming Standard Webhooks signature before reading the OTP and uses server-side secrets `SEND_SMS_HOOK_SECRET`, `TEXTBEE_API_KEY`, and `TEXTBEE_DEVICE_ID`.
+- TextBee credentials and device identifiers must never be committed to Git or placed in any Android build configuration.
+- The Edge Function must be deployed with JWT verification disabled because Auth Hook requests are authenticated by their Standard Webhooks signature, not a user JWT. The function independently verifies that signature.
+- TextBee HTTP 200 means accepted/queued by TextBee, not confirmed delivery to the handset. Delivery must be checked in TextBee message status.
+- **Not yet live:** the function is deployed as code only. Its three secrets and the Supabase Auth Send SMS Hook dashboard configuration still need to be set. No SMS was sent during setup and no paid SMS provider was enabled.
+
+### One-time TextBee configuration
+
+1. In Supabase Dashboard → Edge Functions → Secrets, set `TEXTBEE_API_KEY`, `TEXTBEE_DEVICE_ID`, and `SEND_SMS_HOOK_SECRET`.
+2. Generate a Standard Webhooks secret in the format `v1,whsec_<base64-secret>`. Use the exact same secret for the Edge Function secret and the Auth Hook signing secret.
+3. In Authentication → Hooks, configure **Send SMS Hook** to call `https://nwjrxnrsmfqufbpjfrya.supabase.co/functions/v1/send-sms-textbee` and use the matching signing secret.
+4. Enable phone sign-in and ensure automatic phone confirmation is off. Test with a number you control, then verify delivery status in TextBee.
+5. Do not paste API keys or signing secrets into chat or GitHub. If a key was ever exposed, rotate it in TextBee.
 
 ## Required next steps
 1. Enable phone sign-in and configure an approved SMS provider after cost and credentials are agreed.
