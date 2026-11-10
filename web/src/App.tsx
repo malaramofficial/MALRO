@@ -7,7 +7,7 @@ const config: Record<string, { title: string; subtitle: string; accent: string; 
   customer: { title: 'MALRO Customer', subtitle: 'बाड़मेर का अपना बाज़ार', accent: '#173b62', tabs: ['बाज़ार', 'मेरे ऑर्डर', 'खाता'] },
   seller: { title: 'MALRO Seller', subtitle: 'दुकान और ऑर्डर प्रबंधन', accent: '#17665b', tabs: ['डैशबोर्ड', 'उत्पाद', 'ऑर्डर', 'दुकान'] },
   delivery: { title: 'MALRO Delivery', subtitle: 'डिलीवरी संचालन', accent: '#72502d', tabs: ['मेरे काम', 'इतिहास', 'खाता'] },
-  admin: { title: 'MALRO Admin', subtitle: 'प्लेटफ़ॉर्म संचालन', accent: '#56356c', tabs: ['अवलोकन', 'दुकानें', 'ऑर्डर'] },
+  admin: { title: 'MALRO Admin', subtitle: 'प्लेटफ़ॉर्म संचालन', accent: '#56356c', tabs: ['अवलोकन', 'दुकानें', 'उत्पाद', 'ऑर्डर'] },
 }
 const money = (p: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format((p || 0) / 100)
 const errText = (e: any) => e?.message || 'कुछ गलत हुआ। दोबारा कोशिश करें।'
@@ -64,14 +64,17 @@ export default function App() {
       if (j.error) throw j.error
       setJobs(j.data || [])
     } else if (role === 'admin') {
-      const [s, o] = await Promise.all([
+      const [s, o, p] = await Promise.all([
         supabase.from('shops').select('id,name,owner_id,address,locality,status,created_at').order('created_at', { ascending: false }),
         supabase.from('orders').select('id,status,total_paise,created_at,shop_id,customer_id').order('created_at', { ascending: false }).limit(100),
+        supabase.from('products').select('id,name,category,price_paise,stock_quantity,status,shop_id').order('created_at', { ascending: false }).limit(200),
       ])
       if (s.error) throw s.error
       if (o.error) throw o.error
+      if (p.error) throw p.error
       setShops(s.data || [])
       setOrders(o.data || [])
+      setProducts(p.data || [])
     }
   }, [activeShop])
 
@@ -95,7 +98,7 @@ export default function App() {
 
   useEffect(() => {
     if (!session?.user?.id) return
-    const tables = role === 'customer' ? ['products', 'orders'] : role === 'seller' ? ['shops', 'products', 'orders'] : role === 'delivery' ? ['delivery_jobs', 'orders'] : ['shops', 'orders']
+    const tables = role === 'customer' ? ['products', 'orders'] : role === 'seller' ? ['shops', 'products', 'orders'] : role === 'delivery' ? ['delivery_jobs', 'orders'] : ['shops', 'products', 'orders']
     const channel = supabase.channel('malro-' + role + '-' + session.user.id)
     tables.forEach(table => channel.on('postgres_changes', { event: '*', schema: 'public', table }, () => refresh(session.user.id).catch(e => setNotice(errText(e)))))
     channel.subscribe()
@@ -167,6 +170,11 @@ export default function App() {
     if (error) throw error
     await refresh(session.user.id)
   })
+  const moderateProduct = (id: string, status: 'active' | 'rejected' | 'hidden') => run(async () => {
+    const { error } = await supabase.from('products').update({ status }).eq('id', id)
+    if (error) throw error
+    await refresh(session.user.id)
+  })
   const cancelOrder = (id: string) => run(async () => {
     const { error } = await supabase.rpc('cancel_customer_order', { p_order_id: id })
     if (error) throw error
@@ -192,7 +200,8 @@ export default function App() {
 
     {role === 'admin' && tab === 0 && <div className="metric-grid"><Metric label="दुकानें" value={shops.length}/><Metric label="लंबित दुकानें" value={shops.filter(s => s.status === 'pending').length}/><Metric label="कुल ऑर्डर" value={orders.length}/></div>}
     {role === 'admin' && tab === 1 && <section className="panel"><h2>दुकान समीक्षा</h2>{shops.map(s => <div className="list-row" key={s.id}><div><strong>{s.name}</strong><p className="muted">{s.locality} • {s.status}</p></div>{s.status === 'pending' ? <div className="actions"><button onClick={() => reviewShop(s.id,'approved')}>स्वीकृत</button><button className="danger" onClick={() => reviewShop(s.id,'rejected')}>अस्वीकृत</button></div> : <span className="tag">{s.status}</span>}</div>)}{!shops.length && <Empty text="कोई दुकान आवेदन नहीं है।" />}</section>}
-    {role === 'admin' && tab === 2 && <section className="panel"><h2>सभी ऑर्डर</h2>{orders.map(o => <div className="list-row" key={o.id}><div><strong>#{o.id.slice(0,8)}</strong><p className="muted">{o.status} • {new Date(o.created_at).toLocaleString('hi-IN')}</p></div><strong>{money(o.total_paise)}</strong></div>)}{!orders.length && <Empty text="अभी कोई ऑर्डर नहीं है।" />}</section>}
+    {role === 'admin' && tab === 2 && <section className="panel"><h2>उत्पाद समीक्षा</h2>{products.map(p => <div className="list-row" key={p.id}><div><strong>{p.name}</strong><p className="muted">{p.category} • {money(p.price_paise)} • स्टॉक {p.stock_quantity} • {p.status}</p></div>{p.status !== 'active' ? <button onClick={() => moderateProduct(p.id,'active')}>सक्रिय करें</button> : <button className="secondary" onClick={() => moderateProduct(p.id,'hidden')}>छिपाएँ</button>}</div>)}{!products.length && <Empty text="कोई उत्पाद समीक्षा के लिए नहीं है।" />}</section>}
+    {role === 'admin' && tab === 3 && <section className="panel"><h2>सभी ऑर्डर</h2>{orders.map(o => <div className="list-row" key={o.id}><div><strong>#{o.id.slice(0,8)}</strong><p className="muted">{o.status} • {new Date(o.created_at).toLocaleString('hi-IN')}</p></div><strong>{money(o.total_paise)}</strong></div>)}{!orders.length && <Empty text="अभी कोई ऑर्डर नहीं है।" />}</section>}
     </main><nav className="bottom-nav">{meta.tabs.map((label, i) => <button key={label} className={tab===i?'active':''} onClick={() => setTab(i)}>{label}</button>)}</nav>
     <footer>© MALRO • सुरक्षित, भूमिका-आधारित कार्यक्षेत्र</footer>
   </div>
