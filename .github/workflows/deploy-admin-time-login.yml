@@ -27,4 +27,4 @@ jobs:
         run: |
           test -n "$SUPABASE_ACCESS_TOKEN" || (echo "Missing GitHub secret SUPABASE_ACCESS_TOKEN" && exit 1)
       - name: Deploy Admin time-password login
-        run: supabase functions deploy admin-time-login --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt
+        run: supabase functions deploy admin-time-login --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt --yes
