@@ -47,7 +47,7 @@
   const loadApplications = async () => {
     state.busy=true;render();
     try{
-      const rows=await api("/rest/v1/seller_applications?select=id,application_code,full_name,phone,shop_name,description,address,locality,status,admin_note,submitted_at&order=submitted_at.desc");
+      const rows=await api("/rest/v1/seller_applications?select=id,application_code,seller_code,setup_completed_at,full_name,phone,shop_name,description,address,locality,status,admin_note,submitted_at&order=submitted_at.desc");
       state.applications=Array.isArray(rows)?rows:[];
     }catch(e){toast(e.message,"error");}
     finally{state.busy=false;render();}
@@ -122,11 +122,11 @@
         <div class="stat"><span class="stat-icon">✓</span><div class="stat-label">स्वीकृत आवेदन</div><div class="stat-value">${approved}</div></div>
         <div class="stat"><span class="stat-icon">×</span><div class="stat-label">अस्वीकृत आवेदन</div><div class="stat-value">${rejected}</div></div>
       </div>
-      <div class="panel"><div class="panel-head"><div><h2>नए विक्रेता आवेदन</h2><small class="muted">मंजूरी से पहले दुकान और मोबाइल नंबर की पुष्टि करें।</small></div><button class="ghost" id="allSellers">सभी आवेदन देखें →</button></div>
+      <div class="panel"><div class="panel-head"><div><h2>नए विक्रेता आवेदन</h2><small class="muted">मंजूरी से पहले विक्रेता और दुकान की जानकारी जाँचें। मोबाइल नंबर वैकल्पिक है।</small></div><button class="ghost" id="allSellers">सभी आवेदन देखें →</button></div>
       ${pending.length?tableMarkup(pending.slice(0,5)):'<div class="empty"><div class="empty-icon">✓</div>अभी कोई लंबित आवेदन नहीं है।</div>'}</div>`;
   };
   const tableMarkup = rows => `<div class="table-wrap"><table><thead><tr><th>दुकान / विक्रेता</th><th>आवेदन ID</th><th>मोबाइल</th><th>स्थिति</th><th>कार्यवाही</th></tr></thead><tbody>${rows.map(a=>`
-    <tr><td><strong>${esc(a.shop_name)}</strong><small>${esc(a.full_name)} • ${esc(a.locality)}</small></td><td>${esc(a.application_code)}</td><td>${esc(a.phone)}</td><td><span class="status ${esc(a.status)}">${a.status==="pending"?"लंबित":a.status==="approved"?"स्वीकृत":"अस्वीकृत"}</span></td><td><button class="action" data-open="${esc(a.id)}">विवरण देखें</button></td></tr>`).join("")}</tbody></table></div>`;
+    <tr><td><strong>${esc(a.shop_name)}</strong><small>${esc(a.full_name)} • ${esc(a.locality)}</small></td><td>${esc(a.application_code)}${a.seller_code?'<small>Seller ID: '+esc(a.seller_code)+'</small>':''}</td><td>${esc(a.phone||"—")}</td><td><span class="status ${esc(a.status)}">${a.status==="pending"?"लंबित":a.status==="approved"?"स्वीकृत":"अस्वीकृत"}</span></td><td><button class="action" data-open="${esc(a.id)}">विवरण देखें</button></td></tr>`).join("")}</tbody></table></div>`;
   const sellersPage = () => {
     const q=state.query.toLowerCase();
     const rows=state.applications.filter(a=>[a.shop_name,a.full_name,a.phone,a.application_code].some(v=>(v||"").toLowerCase().includes(q)));
@@ -151,7 +151,7 @@
     backdrop.innerHTML=`<div class="modal"><div class="eyebrow">APPLICATION DETAILS</div><h2>${esc(a.shop_name)}</h2><p class="muted">आवेदन ID: <strong>${esc(a.application_code)}</strong></p>
       <div class="details">
         <div><div class="detail-label">विक्रेता का नाम</div><div class="detail-value">${esc(a.full_name)}</div></div>
-        <div><div class="detail-label">मोबाइल नंबर</div><div class="detail-value">${esc(a.phone)}</div></div>
+        <div><div class="detail-label">मोबाइल नंबर</div><div class="detail-value">${esc(a.phone||"नहीं दिया गया")}</div></div>
         <div><div class="detail-label">दुकान का नाम</div><div class="detail-value">${esc(a.shop_name)}</div></div>
         <div><div class="detail-label">क्षेत्र</div><div class="detail-value">${esc(a.locality)}</div></div>
         <div style="grid-column:1/-1"><div class="detail-label">पूरा पता</div><div class="detail-value">${esc(a.address)}</div></div>
@@ -159,31 +159,43 @@
         <div><div class="detail-label">आवेदन की तारीख</div><div class="detail-value">${new Date(a.submitted_at).toLocaleString("hi-IN")}</div></div>
         <div><div class="detail-label">स्थिति</div><div class="detail-value">${esc(a.status)}</div></div>
       </div>
-      <div class="notice">मोबाइल नंबर OTP से सत्यापित नहीं है। मंजूरी से पहले विक्रेता से संपर्क करके दुकान और नंबर की पुष्टि करें।</div>
-      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px"><button class="ghost" id="closeModal">बंद करें</button>${a.status==="pending"?'<button class="primary" id="approve">स्वीकृत करें</button>':""}</div>
+      <div class="notice">मोबाइल नंबर केवल संपर्क के लिए वैकल्पिक है; इस पंजीकरण में OTP या मोबाइल Login नहीं है। आवेदन स्वीकृत होने पर Seller ID जारी होगी और विक्रेता अपना पासवर्ड स्वयं बनाएगा।</div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px"><button class="ghost" id="closeModal">बंद करें</button>${a.status==="pending"?'<button class="danger" id="reject">अस्वीकृत करें</button><button class="primary" id="approve">स्वीकृत करें</button>':""}</div>
     </div>`;
     document.body.appendChild(backdrop);
     backdrop.querySelector("#closeModal").onclick=()=>backdrop.remove();
     backdrop.onclick=e=>{if(e.target===backdrop)backdrop.remove();};
     const approve=backdrop.querySelector("#approve");if(approve)approve.onclick=()=>approveApplication(a,approve,backdrop);
+    const reject=backdrop.querySelector("#reject");if(reject)reject.onclick=()=>rejectApplication(a,reject,backdrop);
+  };
+  const rejectApplication = async (a,button,backdrop) => {
+    const note=prompt("अस्वीकृति का कारण (वैकल्पिक):");
+    if(note===null)return;
+    if(!confirm("क्या आप यह Seller आवेदन अस्वीकृत करना चाहते हैं?"))return;
+    button.disabled=true;button.textContent="अस्वीकृत कर रहे हैं…";
+    try{
+      await api("/functions/v1/admin-approve-seller","POST",{application_id:a.id,decision:"rejected",admin_note:note});
+      state.applications=state.applications.map(x=>x.id===a.id?{...x,status:"rejected",admin_note:note}:x);
+      backdrop.remove();renderPage();toast("आवेदन अस्वीकृत कर दिया गया।");
+    }catch(e){toast(e.message,"error");button.disabled=false;button.textContent="अस्वीकृत करें";}
   };
   const approveApplication = async (a,button,backdrop) => {
-    if(!confirm("क्या आपने विक्रेता, मोबाइल नंबर और दुकान की पुष्टि कर ली है? आवेदन स्वीकृत करने पर Seller Login बनेगा।"))return;
+    if(!confirm("क्या आपने विक्रेता और दुकान की जानकारी जाँच ली है? स्वीकृति पर Seller ID जारी होगी और विक्रेता स्वयं पासवर्ड बनाएगा।"))return;
     button.disabled=true;button.textContent="स्वीकृति हो रही है…";
     try{
-      const result=await api("/functions/v1/admin-approve-seller","POST",{application_id:a.id});
-      state.credentials={id:result.seller_login_id,password:result.temporary_password,code:result.application_code};
-      state.applications=state.applications.map(x=>x.id===a.id?{...x,status:"approved"}:x);
+      const result=await api("/functions/v1/admin-approve-seller","POST",{application_id:a.id,decision:"approved"});
+      state.credentials={id:result.seller_code,code:result.application_code};
+      state.applications=state.applications.map(x=>x.id===a.id?{...x,status:"approved",seller_code:result.seller_code}:x);
       backdrop.remove();showCredentials();renderPage();
     }catch(e){toast(e.message,"error");button.disabled=false;button.textContent="स्वीकृत करें";}
   };
   const showCredentials = () => {
     const c=state.credentials;if(!c)return;
     const modal=document.createElement("div");modal.className="modal-backdrop";
-    modal.innerHTML=`<div class="modal"><div class="eyebrow">SELLER ACCOUNT CREATED</div><h2>दुकान स्वीकृत हो गई ✓</h2><p class="muted">यह अस्थायी पासवर्ड केवल अभी दिखेगा। इसे विक्रेता तक सुरक्षित तरीके से पहुँचाएँ।</p>
+    modal.innerHTML=`<div class="modal"><div class="eyebrow">SELLER ID ISSUED</div><h2>आवेदन स्वीकृत हो गया ✓</h2><p class="muted">अब विक्रेता Seller ऐप में आवेदन कोड और सुरक्षा कोड से पहचान सत्यापित करके अपना पासवर्ड स्वयं बनाएगा।</p>
       <div class="credential"><div class="detail-label">Seller ID</div><div class="credential-row"><span id="sellerId">${esc(c.id)}</span><button class="copy" data-copy="sellerId">कॉपी</button></div></div>
-      <div class="credential"><div class="detail-label">अस्थायी पासवर्ड</div><div class="credential-row"><span id="sellerPass">${esc(c.password)}</span><button class="copy" data-copy="sellerPass">कॉपी</button></div></div>
-      <div class="notice">पासवर्ड स्क्रीन बंद करने के बाद दोबारा नहीं दिखेगा। विक्रेता को पहली Login के बाद पासवर्ड बदलने की सुविधा अभी अलग से जोड़नी होगी।</div>
+      <div class="credential"><div class="detail-label">आवेदन ID</div><div class="credential-row"><span id="applicationCode">${esc(c.code)}</span><button class="copy" data-copy="applicationCode">कॉपी</button></div></div>
+      <div class="notice">Admin पासवर्ड नहीं बनाता और न ही देखता है। विक्रेता अपने पास सुरक्षित रखे गए सुरक्षा कोड से अकाउंट सेटअप करेगा।</div>
       <button class="primary full" id="done" style="margin-top:16px">समझ गया</button>
     </div>`;
     document.body.appendChild(modal);
@@ -193,7 +205,7 @@
   const logout = async () => {try{await api("/auth/v1/logout","POST",{});}catch{}clearSession();loginView();};
   const dashboard = async () => {await checkAdmin();await loadApplications();state.page="dashboard";render();};
   const start = async () => {
-    if(!cfg.supabaseUrl||!cfg.anonKey){root.innerHTML='<div class="boot"><h2>सेटअप अधूरा है</h2><p>Vercel Environment Variables जाँचें।</p></div>';return;}
+    if(!cfg.supabaseUrl||!cfg.anonKey){root.innerHTML='<div class="boot"><h2>सेटअप अधूरा है</h2><p>Render Environment Variables जाँचें।</p></div>';return;}
     if(await restore()){await dashboard();}else loginView();
   };
   start();
