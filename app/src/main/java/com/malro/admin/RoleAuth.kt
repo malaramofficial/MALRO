@@ -60,7 +60,7 @@ private object AdminSessionStore {
     }
     fun clear(c:Context){c.getSharedPreferences(PREFS,0).edit().remove(ENTRY).apply()}
 }
-private object RoleAuth {
+object RoleAuth {
     private fun request(path:String,body:JSONObject?=null,token:String?=null):JSONObject {
         val conn=URL(BuildConfig.SUPABASE_URL+path).openConnection() as HttpURLConnection
         try{
