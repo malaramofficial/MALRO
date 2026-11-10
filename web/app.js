@@ -1,7 +1,7 @@
 (() => {
   const cfg = window.MALRO_CONFIG || {};
   const root = document.getElementById("app");
-  const state = { access:"", refresh:"", expires:0, user:null, applications:[], query:"", page:"dashboard", busy:false, credentials:null, selected:null };
+  const state = { access:"", refresh:"", expires:0, user:null, applications:[], orders:[], deliveryPartners:[], query:"", page:"dashboard", busy:false, credentials:null, selected:null };
   const esc = (s="") => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const phoneClean = s => { const p=s.replace(/\s+/g,"").replace(/[^+0-9]/g,""); return /^\d{10}$/.test(p) ? "+91"+p : p; };
   const api = async (path, method="GET", body=null, token=state.access) => {
@@ -43,6 +43,14 @@
   const toast = (message, type="") => {
     let el=document.querySelector(".toast");if(!el){el=document.createElement("div");el.className="toast";document.body.appendChild(el);}
     el.className="toast "+type;el.textContent=message;setTimeout(()=>el.remove(),4200);
+  };
+  const loadOperations = async () => {
+    const [orders, partners] = await Promise.all([
+      api("/rest/v1/orders?select=id,status,total_paise,created_at,shop_id,shops(name)&order=created_at.desc&limit=100"),
+      api("/rest/v1/rpc/admin_list_delivery_partners","POST",{})
+    ]);
+    state.orders=Array.isArray(orders)?orders:[];
+    state.deliveryPartners=Array.isArray(partners)?partners:[];
   };
   const loadApplications = async () => {
     state.busy=true;render();
@@ -98,6 +106,7 @@
           <div><div class="side-label">WORKSPACE</div><nav class="nav">
             ${navButton("dashboard","⌂","डैशबोर्ड")}
             ${navButton("sellers","▤","विक्रेता आवेदन")}
+            ${navButton("orders","▣","ऑर्डर व डिलीवरी")}
           </nav></div>
           <div class="side-bottom"><div class="admin-user">लॉगिन: ${esc(state.user?.phone||state.user?.email||"Admin")}</div><button class="nav" id="logout" style="margin-top:12px;width:100%;border:0;background:transparent;color:#e3c37b;text-align:left;padding:10px">↪ लॉगआउट</button></div>
         </aside>
@@ -135,10 +144,27 @@
       <div class="panel"><div class="panel-head"><div><h2>सभी आवेदन <span class="muted">(${rows.length})</span></h2></div><input class="search" id="search" placeholder="दुकान, नाम, मोबाइल या ID खोजें" value="${esc(state.query)}" /></div>
       ${rows.length?tableMarkup(rows):'<div class="empty"><div class="empty-icon">⌕</div>कोई आवेदन नहीं मिला।</div>'}</div>`;
   };
+  const ordersPage = () => `
+    <div class="page-head"><div><div class="eyebrow">ORDER OPERATIONS</div><h1>ऑर्डर व डिलीवरी</h1><p>ग्राहक के ऑर्डर को सही डिलीवरी पार्टनर से जोड़ें।</p></div><button class="ghost" id="refreshOrders">↻ रिफ्रेश</button></div>
+    <div class="panel"><div class="panel-head"><h2>हाल के ऑर्डर (${state.orders.length})</h2></div>
+    ${state.orders.length ? `<div class="table-wrap"><table><thead><tr><th>ऑर्डर</th><th>दुकान</th><th>राशि</th><th>स्थिति</th><th>डिलीवरी पार्टनर</th></tr></thead><tbody>${state.orders.map(o=>`
+      <tr><td><strong>#${esc(String(o.id).slice(0,8))}</strong><small>${new Date(o.created_at).toLocaleString("hi-IN")}</small></td>
+      <td>${esc(o.shops?.name||"दुकान")}</td><td>₹${(Number(o.total_paise||0)/100).toFixed(2)}</td>
+      <td><span class="status">${esc(o.status)}</span></td><td>${["packed","assigned"].includes(o.status) ? `<select id="delivery-${esc(o.id)}">${state.deliveryPartners.map(p=>`<option value="${esc(p.id)}">${esc(p.full_name||p.phone||p.id)}</option>`).join("")}</select><button class="action" data-assign="${esc(o.id)}" ${state.deliveryPartners.length?"":"disabled"}>असाइन करें</button>` : "पैक होने की प्रतीक्षा"}</td></tr>`).join("")}</tbody></table></div>` : '<div class="empty">अभी कोई ऑर्डर नहीं है।</div>'}
+    ${state.deliveryPartners.length ? "" : '<div class="notice">अभी कोई Delivery भूमिका वाला अकाउंट उपलब्ध नहीं है। पहले Delivery ऐप में अधिकृत अकाउंट तैयार होना चाहिए।</div>'}
+    </div>`;
   const renderPage = () => {
     const page=root.querySelector("#page");if(!page)return;
-    page.innerHTML=state.page==="dashboard"?dashboardPage():sellersPage();
+    page.innerHTML=state.page==="dashboard"?dashboardPage():state.page==="sellers"?sellersPage():ordersPage();
     const refresh=page.querySelector("#refresh");if(refresh)refresh.onclick=loadApplications;
+    const refreshOrders=page.querySelector("#refreshOrders");if(refreshOrders)refreshOrders.onclick=async()=>{try{await loadOperations();renderPage();toast("ऑर्डर सूची अपडेट हो गई।");}catch(e){toast(e.message,"error");}};
+    page.querySelectorAll("[data-assign]").forEach(b=>b.onclick=async()=>{
+      const orderId=b.dataset.assign;const select=page.querySelector("#delivery-"+CSS.escape(orderId));
+      if(!select?.value)return toast("पहले Delivery Partner चुनें।","error");
+      b.disabled=true;b.textContent="असाइन हो रहा है…";
+      try{await api("/rest/v1/rpc/admin_assign_delivery","POST",{p_order_id:orderId,p_delivery_user_id:select.value});await loadOperations();renderPage();toast("Delivery Partner असाइन हो गया।");}
+      catch(e){toast(e.message,"error");b.disabled=false;b.textContent="असाइन करें";}
+    });
     const all=page.querySelector("#allSellers");if(all)all.onclick=()=>{state.page="sellers";render();};
     const search=page.querySelector("#search");if(search)search.oninput=()=>{state.query=search.value;const pos=search.selectionStart;renderPage();const n=page.querySelector("#search");n.focus();n.setSelectionRange(pos,pos);};
     page.querySelectorAll("[data-open]").forEach(b=>b.onclick=()=>showApplication(b.dataset.open));
@@ -205,7 +231,7 @@
     modal.querySelector("#done").onclick=()=>{modal.remove();state.credentials=null;};
   };
   const logout = async () => {try{await api("/auth/v1/logout","POST",{});}catch{}clearSession();loginView();};
-  const dashboard = async () => {await checkAdmin();await loadApplications();state.page="dashboard";render();};
+  const dashboard = async () => {await checkAdmin();await Promise.all([loadApplications(),loadOperations()]);state.page="dashboard";render();};
   const start = async () => {
     if(!cfg.supabaseUrl||!cfg.anonKey){root.innerHTML='<div class="boot"><h2>सेटअप अधूरा है</h2><p>Render Environment Variables जाँचें।</p></div>';return;}
     if(await restore()){await dashboard();}else loginView();
