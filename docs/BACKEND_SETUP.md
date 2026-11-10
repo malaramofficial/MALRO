@@ -49,7 +49,7 @@ This is a public read/connectivity integration only. It does **not** yet impleme
 
 ## Required next steps
 1. Enable phone sign-in and configure an approved SMS provider after cost and credentials are agreed.
-2. Verify all four OTP builds. Add logout UI and role-aware seller onboarding/approval screens, then run end-to-end SMS tests after a provider is explicitly approved and configured.
+2. Verify all four OTP builds. Add seller onboarding entry/registration and logout UI, then run end-to-end SMS tests after a provider is explicitly approved and configured.
 3. Implement seller onboarding UI and connect it to `request-seller-onboarding`; connect the admin review UI to `admin-review-shop`.
 4. Bootstrap the first admin identity through a trusted setup path, then provision delivery identities separately.
 5. Build and deploy authenticated Edge Functions for create-order, seller-order-action, assign-delivery, delivery-action, cancel-order and payment-webhook.
