@@ -173,7 +173,7 @@ export default function App() {
     await refresh(session.user.id)
   })
 
-  return <div className="app-shell" style={{ '--accent': meta.accent } as React.CSSProperties}>
+  return <div className="app-shell" style={{ '--accent': meta.accent } as any}>
     <header className="topbar"><div><div className="wordmark">MALRO</div><div className="muted small">{meta.subtitle}</div></div><div className="user-pill">{profile?.full_name || session.user.phone || 'लॉगिन'}<button className="text-button" onClick={signOut}>बाहर</button></div></header>
     <main className="content"><div className="page-heading"><div><p className="eyebrow">{role.toUpperCase()} WORKSPACE</p><h1>{meta.tabs[tab]}</h1></div><span className="live-dot">LIVE DATA</span></div>
     {notice && <div className="notice banner">{notice}<button className="text-button" onClick={() => setNotice('')}>×</button></div>}
