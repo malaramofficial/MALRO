@@ -4,7 +4,6 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,7 +18,7 @@ private val Gold=Color(0xFFD8B56D)
 private val Paper=Color(0xFFF4F6F9)
 
 class MainActivity:ComponentActivity(){
- override fun onCreate(savedInstanceState:Bundle?){super.onCreate(savedInstanceState);setContent{MalroApp()}}
+ override fun onCreate(savedInstanceState:Bundle?){super.onCreate(savedInstanceState);setContent{MalroAuthGate { MalroApp() }}}
 }
 @Composable private fun MalroApp(){
  var tab by remember{mutableIntStateOf(0)}
@@ -49,14 +48,9 @@ class MainActivity:ComponentActivity(){
   Text("डेमो उत्पाद हैं; वास्तविक कीमत, स्टॉक और भुगतान सर्वर से सत्यापित होंगे।",fontSize=12.sp,color=Color.Gray)
  }}
      1->{Column(Modifier.fillMaxSize().padding(22.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){Text("कार्ट",fontSize=25.sp,fontWeight=FontWeight.Bold,color=Ink);Text("इस मॉड्यूल का लाइव डेटा बैकएंड कनेक्शन के बाद दिखेगा।",color=Color.Gray)}}
-     else->{Column(Modifier.fillMaxSize().padding(22.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){Text("ऑर्डर",fontSize=25.sp,fontWeight=FontWeight.Bold,color=Ink);Text("सुरक्षित लॉगिन और सर्वर डेटा अगली स्टेज में जुड़ेगा।",color=Color.Gray)}}
+     else->{Column(Modifier.fillMaxSize().padding(22.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){Text("ऑर्डर",fontSize=25.sp,fontWeight=FontWeight.Bold,color=Ink);Text("ऑर्डर हिस्ट्री बैकएंड इंटीग्रेशन के बाद दिखेगी।",color=Color.Gray)}}
     }
    }
   }
- }
-}
-@Composable private fun Metric(label:String,value:String,modifier:Modifier=Modifier){
- Card(modifier,colors=CardDefaults.cardColors(containerColor=Color.White),shape=RoundedCornerShape(16.dp)){
-  Column(Modifier.padding(16.dp)){Text(label,color=Color.Gray,fontSize=12.sp);Text(value,color=Ink,fontWeight=FontWeight.Bold,fontSize=25.sp)}
  }
 }
