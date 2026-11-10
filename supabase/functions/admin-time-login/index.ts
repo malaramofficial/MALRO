@@ -30,19 +30,6 @@ Deno.serve(async (req: Request) => {
   const supplied = typeof body.password === "string" ? body.password : "";
   if (supplied.length < 5 || supplied.length > 100) return reply({ error: "पासवर्ड गलत है।" }, 401);
 
-  const formatter = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hourCycle: "h23"
-  });
-  // Allow the immediately adjacent minute too, so typing/submitting at a
-  // minute boundary does not reject a password that was just generated.
-  const validTimeCodes = [-1, 0, 1].map(offset => {
-    const d = new Date(Date.now() + offset * 60 * 1000);
-    return formatter.format(d).replace(":", "");
-  });
-  if (!validTimeCodes.some(code => supplied.endsWith(code))) {
-    return reply({ error: "पासवर्ड गलत है या समय बदल गया है।" }, 401);
-  }
-
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
     || req.headers.get("x-real-ip") || "unknown";
   const ipHash = await sha256(ip);
@@ -69,7 +56,7 @@ Deno.serve(async (req: Request) => {
   if (attempts.length > 5) return reply({ error: "बहुत अधिक प्रयास। 10 मिनट बाद फिर कोशिश करें।" }, 429);
 
   const verify = await fetch(url + "/rest/v1/rpc/verify_malro_admin_base_password", {
-    method: "POST", headers, body: JSON.stringify({ candidate: supplied.slice(0, -4) }),
+    method: "POST", headers, body: JSON.stringify({ candidate: supplied }),
   });
   if (!verify.ok || await verify.json() !== true) return reply({ error: "पासवर्ड गलत है।" }, 401);
 
@@ -86,7 +73,7 @@ Deno.serve(async (req: Request) => {
   }
 
   if (!user) {
-    const randomPassword = Array.from(crypto.getRandomValues(new Uint8Array(48)))
+    const randomPassword = Array.from(crypto.getRandomValues(new Uint8Array(32)))
       .map(x => x.toString(16).padStart(2, "0")).join("");
     const createRes = await fetch(url + "/auth/v1/admin/users", {
       method: "POST", headers,
