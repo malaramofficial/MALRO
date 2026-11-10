@@ -19,7 +19,7 @@ private val Gold=Color(0xFFD8B56D)
 private val Paper=Color(0xFFF4F6F9)
 
 class MainActivity:ComponentActivity(){
- override fun onCreate(savedInstanceState:Bundle?){super.onCreate(savedInstanceState);setContent{MalroApp()}}
+ override fun onCreate(savedInstanceState:Bundle?){super.onCreate(savedInstanceState);setContent{MalroAuthGate { MalroApp() }}}
 }
 @Composable private fun MalroApp(){
  var tab by remember{mutableIntStateOf(0)}
@@ -47,10 +47,10 @@ class MainActivity:ComponentActivity(){
   Button(onClick={added++;stock++},modifier=Modifier.fillMaxWidth()){Text("+ नया डेमो उत्पाद जोड़ें")}
   Text("उत्पाद सूची",fontWeight=FontWeight.Bold,color=Ink)
   listOf("बाजरे का आटा","मूंग दाल","देसी घी").forEach { p -> Card(colors=CardDefaults.cardColors(containerColor=Color.White)){Row(Modifier.fillMaxWidth().padding(14.dp),verticalAlignment=Alignment.CenterVertically){Text(p,Modifier.weight(1f),color=Ink);TextButton(onClick={stock=(stock-1).coerceAtLeast(0)}){Text("− स्टॉक")};TextButton(onClick={stock++}){Text("+")}}} }
-  Text("ऑर्डर स्वीकृति और स्टॉक बदलाव अभी स्थानीय डेमो हैं। असली बिक्री के लिए विक्रेता सत्यापन व सर्वर API चाहिए।",fontSize=12.sp,color=Color.Gray)
+  Text("यह अभी डेमो डैशबोर्ड है। विक्रेता दुकान का सत्यापन और लाइव उत्पाद API अगली स्टेज में जुड़ेंगे।",fontSize=12.sp,color=Color.Gray)
  }}
-     1->{Column(Modifier.fillMaxSize().padding(22.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){Text("उत्पाद",fontSize=25.sp,fontWeight=FontWeight.Bold,color=Ink);Text("इस मॉड्यूल का लाइव डेटा बैकएंड कनेक्शन के बाद दिखेगा।",color=Color.Gray)}}
-     else->{Column(Modifier.fillMaxSize().padding(22.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){Text("ऑर्डर",fontSize=25.sp,fontWeight=FontWeight.Bold,color=Ink);Text("सुरक्षित लॉगिन और सर्वर डेटा अगली स्टेज में जुड़ेगा।",color=Color.Gray)}}
+     1->{Column(Modifier.fillMaxSize().padding(22.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){Text("उत्पाद",fontSize=25.sp,fontWeight=FontWeight.Bold,color=Ink);Text("लाइव उत्पाद सूची बैकएंड इंटीग्रेशन के बाद दिखेगी।",color=Color.Gray)}}
+     else->{Column(Modifier.fillMaxSize().padding(22.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){Text("ऑर्डर",fontSize=25.sp,fontWeight=FontWeight.Bold,color=Ink);Text("लाइव ऑर्डर बैकएंड इंटीग्रेशन के बाद दिखेंगे।",color=Color.Gray)}}
     }
    }
   }
