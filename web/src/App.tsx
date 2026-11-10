@@ -203,7 +203,7 @@ export default function App() {
 const SELLER_CLAIM_KEY = 'malro_seller_application_claim'
 
 function SellerGate() {
-  const [mode, setMode] = useState<'register' | 'status' | 'login'>(() => {
+  const [mode, setMode] = useState<'register' | 'status' | 'login' | 'recover'>(() => {
     try { return localStorage.getItem(SELLER_CLAIM_KEY) ? 'status' : 'register' } catch { return 'register' }
   })
   const [form, setForm] = useState({ full_name: '', phone: '', shop_name: '', description: '', address: '', locality: 'Barmer' })
@@ -214,6 +214,8 @@ function SellerGate() {
   const [sellerPassword, setSellerPassword] = useState('')
   const [loginId, setLoginId] = useState('')
   const [loginPassword, setLoginPassword] = useState('')
+  const [recoverCode, setRecoverCode] = useState('')
+  const [recoverSecret, setRecoverSecret] = useState('')
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState('')
 
@@ -282,6 +284,24 @@ function SellerGate() {
     finally { setBusy(false) }
   }
 
+  const recoverApplication = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setBusy(true); setNotice('')
+    try {
+      const claim = {
+        application_code: recoverCode.trim().toUpperCase(),
+        claim_secret: recoverSecret.trim().toUpperCase(),
+      }
+      const { data, error } = await supabase.functions.invoke('request-seller-onboarding', {
+        body: { action: 'status', ...claim },
+      })
+      if (error) throw error
+      localStorage.setItem(SELLER_CLAIM_KEY, JSON.stringify(claim))
+      setSaved(claim); setApplicationStatus(data); setMode('status')
+    } catch (e: any) { setNotice(errText(e)) }
+    finally { setBusy(false) }
+  }
+
   const login = async (e: React.FormEvent) => {
     e.preventDefault()
     setBusy(true); setNotice('')
@@ -325,6 +345,7 @@ function SellerGate() {
           <label style={{ gridColumn: '1 / -1' }}>दुकान का पूरा पता<textarea required minLength={5} maxLength={500} rows={3} value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} /></label>
         </div>
         <button type="submit" disabled={busy}>{busy ? 'आवेदन भेज रहे हैं…' : 'आवेदन Submit करें'}</button>
+        <button type="button" className="secondary" onClick={() => setMode('recover')}>पहले आवेदन किया है? स्थिति देखें</button>
       </form>}
 
       {mode === 'status' && <section>
@@ -337,6 +358,13 @@ function SellerGate() {
           {applicationStatus?.status === 'rejected' && <><h2>आवेदन स्वीकृत नहीं हुआ</h2><p className="notice">{applicationStatus.admin_note || 'कृपया Admin से संपर्क करें।'}</p><button type="button" onClick={clearApplication}>नया आवेदन भरें</button></>}
         </> : <p className="muted">इस डिवाइस पर आवेदन की जानकारी नहीं मिली।</p>}
       </section>}
+
+      {mode === 'recover' && <form onSubmit={recoverApplication}>
+        <h2>पुराना आवेदन खोजें</h2>
+        <label>आवेदन ID<input required value={recoverCode} onChange={e => setRecoverCode(e.target.value.toUpperCase())} placeholder="MLR-XXXXXXXXXX" /></label>
+        <label>सुरक्षा कोड<input required value={recoverSecret} onChange={e => setRecoverSecret(e.target.value.toUpperCase())} placeholder="48 अक्षरों का सुरक्षा कोड" /></label>
+        <button type="submit" disabled={busy}>{busy ? 'आवेदन खोज रहे हैं…' : 'स्थिति देखें'}</button>
+      </form>}
 
       {mode === 'login' && <form onSubmit={login}>
         <label>Seller ID<input required autoCapitalize="characters" value={loginId} onChange={e => setLoginId(e.target.value)} placeholder="MALRO-S-XXXXXXXXXX" /></label>
